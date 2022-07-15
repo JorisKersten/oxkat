@@ -27,7 +27,6 @@ else:
 
 CWD = os.getcwd()
 HOME = os.path.expanduser('~')
-S3HOME = '/scratch3/users/'+os.getlogin()
 
 OXKAT = CWD+'/oxkat'
 DATA = CWD+'/data'
@@ -55,7 +54,7 @@ USE_SINGULARITY = True
 BIND = ''
 BINDPATH = '$PWD,'+CWD+','+BIND
 
-IDIA_CONTAINER_PATH = ['/idia/software/containers/',HOME+'/containers/',S3HOME+'/Containers']
+IDIA_CONTAINER_PATH = ['/idia/software/containers/',HOME+'/containers/']
 CHPC_CONTAINER_PATH = [HOME+'/containers/']
 HIPPO_CONTAINER_PATH = None
 NODE_CONTAINER_PATH = [HOME+'/containers/']
@@ -80,15 +79,15 @@ WSCLEAN_PATTERN = 'oxkat-0.4'
 # Slurm resource settings
 #
 
-SLURM_ACCOUNT = 'b24-thunderkat-ag' # e.g. b09-mightee-ag, b19-meerlicht-ag
-SLURM_RESERVATION = '' # e.g. lsp-mightee, lsp-thunderkat
+SLURM_ACCOUNT = '' # e.g. b09-mightee-ag, b24-thunderkat-ag
+SLURM_RESERVATION = '' # e.g. lsp-mightee
 
 SLURM_NODELIST = '' # Specify node(s) to use
 SLURM_EXCLUDE = '' # Specify node(s) to exclude
 
 
 SLURM_DEFAULTS = {
-	'TIME': '24:00:00',
+	'TIME': '12:00:00',
 	'PARTITION': 'Main',
 	'NTASKS': '1',
 	'NODES': '1',
@@ -101,17 +100,17 @@ SLURM_TRICOLOUR = {
     'PARTITION': 'Main',
     'NTASKS': '1',
     'NODES': '1',
-    'CPUS': '16',
-    'MEM': '115GB'
+    'CPUS': '32',
+    'MEM': '230GB'
 }
 
 SLURM_WSCLEAN = {
-    'TIME': '36:00:00',
+    'TIME': '12:00:00',
     'PARTITION': 'Main',
     'NTASKS': '1',
     'NODES': '1',
-    'CPUS': '16',
-    'MEM': '115GB'
+    'CPUS': '32',
+    'MEM': '230GB'
 }
 
 SLURM_EXTRALONG = {
@@ -187,13 +186,14 @@ CAL_1GC_SECONDARY_INTENT = 'PHASE'   # (partial) string to match for secondary i
 
 # Pre-processing, operations applied when master MS is split to working MS
 PRE_FIELDS = ''                      # Comma-separated list of fields to select from raw MS
+                                     # Names or IDs, do not mix, do not use spaces
 PRE_SCANS = ''                       # Comma-separated list of scans to select from raw MS
 PRE_NCHANS = 1024                    # Integer number of channels for working MS
 PRE_TIMEBIN = '8s'                   # Integration time for working MS
 
 # Reference antennas
 CAL_1GC_REF_ANT = 'auto'             # Comma-separated list to manually specify refant(s)
-CAL_1GC_REF_POOL = ['m001','m000','m002','m003','m004','m006', 'm007', 'm008', 'm009'] 
+CAL_1GC_REF_POOL = ['m000','m001','m002','m003','m004','m006'] 
                                      # Pool to re-order for reference antenna list for 'auto'
 
 # Field selection, IDs only at present. (Use tools/ms_info.py.)
@@ -330,7 +330,7 @@ CAL_2GC_DELAYCAL_PARSET = DATA+'/cubical/2GC_delaycal.parset'
 CAL_3GC_PEEL_NCHAN = 32
 CAL_3GC_PEEL_BRIGGS = -0.6
 CAL_3GC_PEEL_DIR1COLNAME = 'DIR1_DATA'
-CAL_3GC_PEEL_REGION = S3HOME+'/Campaign/E1/data/peeling/Object_peel_Bright01.reg'  # Specify DS9 peeling region 
+CAL_3GC_PEEL_REGION = ''  # Specify DS9 peeling region 
                           # Leave blank to search for <fieldname>*peel*.reg in the current path
 CAL_3GC_PEEL_PARSET = DATA+'/cubical/3GC_peel.parset'
 CAL_3GC_FACET_REGION = '' # Specify DS9 region to define tessel centres
@@ -345,7 +345,7 @@ CAL_3GC_FACET_REGION = '' # Specify DS9 region to define tessel centres
 # Flag settings
 #
 
-SAVE_FLAGS = True
+SAVE_FLAGS = False
 
 
 # ------------------------------------------------------------------------
@@ -353,7 +353,7 @@ SAVE_FLAGS = True
 # wsclean defaults
 #
 # General
-WSC_MEM = 95
+WSC_MEM = 90
 WSC_ABSMEM = -1 # in GB; mem is used if absmem is negative, calculated automatically for HPC, see absmem_helper
 WSC_CONTINUE = False
 WSC_PARALLELREORDERING = 8
@@ -377,7 +377,7 @@ WSC_IMSIZE = 10240
 WSC_CELLSIZE = '1.1asec'
 # Gridding / degridding
 WSC_USEWGRIDDER = True
-WSC_WGRIDDERACCURACY = 2e-5
+WSC_WGRIDDERACCURACY = 5e-5
 WSC_BDA = False
 WSC_BDAFACTOR = 10
 WSC_NOMODEL = False
@@ -387,24 +387,24 @@ WSC_USEIDG = False # use image-domain gridder (not useable yet)
 WSC_IDGMODE = 'CPU'
 WSC_PREDICTCHANNELS = 64
 # Weighting
-WSC_BRIGGS = -0.1
+WSC_BRIGGS = -0.3
 WSC_TAPERGAUSSIAN = ''
 # Deconvolution
 WSC_PARALLELDECONVOLUTION = 2560
 WSC_MULTISCALE = False
 WSC_SCALES = '0,3,9'
-WSC_NITER = 800000
-WSC_GAIN = 0.1
-WSC_MGAIN = 0.80
+WSC_NITER = 80000
+WSC_GAIN = 0.15
+WSC_MGAIN = 0.9
 WSC_CHANNELSOUT = 8
 WSC_FITSPECTRALPOL = 4
 WSC_JOINCHANNELS = True
 WSC_NONEGATIVE = False
 WSC_STOPNEGATIVE = False
-WSC_CIRCULARBEAM = False
+WSC_CIRCULARBEAM = True
 # Masking
 WSC_MASK = 'auto'
-WSC_THRESHOLD = 2.0e-5
+WSC_THRESHOLD = 1e-6
 WSC_AUTOMASK = 4.0
 WSC_AUTOTHRESHOLD = 1.0
 WSC_LOCALRMS = True
@@ -481,7 +481,7 @@ DDF_CACHERESET = 0
 DDF_CACHEDIR = '.'
 DDF_CACHEHMP = 1
 # [Beam]
-DDF_BEAM = HOME+'/Beams/meerkat_pb_jones_cube_95channels_$(xy)_$(reim).fits' # specify beam cube of the form: meerkat_pb_jones_cube_95channels_$(xy)_$(reim).fits
+DDF_BEAM = '' # specify beam cube of the form: meerkat_pb_jones_cube_95channels_$(xy)_$(reim).fits
 DDF_BEAMNBAND= 10
 DDF_DTBEAMMIN = 1
 DDF_FITSPARANGLEINCDEG = 0.5
@@ -545,7 +545,7 @@ KMS_TCHUNK = 0.5
 KMS_INCOL = 'CORRECTED_DATA'
 KMS_OUTCOL = 'MODEL_DATA'
 # [Beam]
-KMS_BEAM = HOME+'/Beams/meerkat_pb_jones_cube_95channels_$(xy)_$(reim).fits'
+KMS_BEAM = ''
 KMS_BEAMAT = 'Facet'
 KMS_DTBEAMMIN = 1
 KMS_CENTRENORM = 1
