@@ -36,11 +36,11 @@ def main():
 
     tt = table(myms,ack=False)
     all_times = list(numpy.unique(tt.getcol('TIME')))
+    inttime = round(numpy.mean(tt.getcol('INTERVAL')),4)
+    exposure = round(numpy.mean(tt.getcol('EXPOSURE')),4)
     track_length = round((((all_times[-1] - all_times[0]) + inttime) / 3600.0),3)   # The total length of data aquisition is one integration time (interval) longer.
     scan_numbers = list(set(tt.getcol('SCAN_NUMBER')))
     n_scans = len(scan_numbers)
-    inttime = round(numpy.mean(tt.getcol('INTERVAL')),4)
-    exposure = round(numpy.mean(tt.getcol('EXPOSURE')),4)
     field_tab = table(myms+'/FIELD',ack=False)
     field_names = field_tab.getcol('NAME')
     n_fields = len(field_names)
