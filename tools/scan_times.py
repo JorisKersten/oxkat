@@ -36,9 +36,10 @@ def main():
 
     tt = table(myms,ack=False)
     all_times = list(numpy.unique(tt.getcol('TIME')))
-    track_length = round(((all_times[-1] - all_times[0]) / 3600.0),3)
+    track_length = round((((all_times[-1] - all_times[0]) + inttime) / 3600.0),3)   # The total length of data aquisition is one integration time (interval) longer.
     scan_numbers = list(set(tt.getcol('SCAN_NUMBER')))
     n_scans = len(scan_numbers)
+    inttime = round(numpy.mean(tt.getcol('INTERVAL')),4)
     exposure = round(numpy.mean(tt.getcol('EXPOSURE')),4)
     field_tab = table(myms+'/FIELD',ack=False)
     field_names = field_tab.getcol('NAME')
@@ -62,15 +63,16 @@ def main():
             field_name = field_names[field_id]
             subtab.done()
 
-            t0 = times[0] # start time for this scan 
-            t1 = times[-1] # end time for this scan
-            int0 = all_times.index(t0) # start interval number in the full MS
-            int1 = all_times.index(t1) # end interval number in the full MS
-            dt = (t1-t0) # duration of this scan
-            duration = round((dt/60.0),2) # duration in minutes
-            n_int = int(dt / exposure) # number of integration times in this scan
-            tc = t0+(dt/2.0) # central time of this scan 
-            t_iso = Time(tc/86400.0,format='mjd').iso # central time of this scan in ISO format
+            t0 = times[0] # Start time for this scan. (Midpoint of the integration period.)
+            t1 = times[-1] # End time for this scan.  (Midpoint of the integration period.)
+            int0 = all_times.index(t0) # Start interval number in the full MS.
+            int1 = all_times.index(t1) # End interval number in the full MS.
+            dt = (t1-t0) + inttime # Duration of this scan.
+            duration = round((dt/60.0),2) # Duration in minutes.
+#            n_int = int(dt / exposure) # Number of integration times in this scan. This is assuming that exposure is not just a mean, but also very similar to the exposure in each integration.
+            n_int = int(dt / inttime) # Number of integration times in this scan.
+            tc = (t0-inttime/2.0)+(dt/2.0) # Central time of this scan.
+            t_iso = Time(tc/86400.0,format='mjd').iso # Central time of this scan in ISO format.
 
             mylogger.info('%-5i %-12s %-5s %-25s %-20f %-20f %-20f %-7s %-7s %-12s %-5i' % 
                 (scan,field_name,field_id,t_iso,tc,t0,t1,int0,int1,duration,n_int))
