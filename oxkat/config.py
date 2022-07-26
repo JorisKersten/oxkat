@@ -4,6 +4,7 @@
 
 import json
 import os
+import getpass as gt
 import sys
 
 
@@ -27,7 +28,7 @@ else:
 
 CWD = os.getcwd()
 HOME = os.path.expanduser('~')
-S3HOME = '/scratch3/users/'+os.getlogin()
+S3HOME = '/scratch3/users/'+gt.getuser()
 
 OXKAT = CWD+'/oxkat'
 DATA = CWD+'/data'
