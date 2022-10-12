@@ -54,15 +54,16 @@ def main():
 
 
     myms = sys.argv[1].rstrip('/')
+    mymsname = myms.split('/')[-1]
     maintab = table(myms,ack=False)
     scans = list(numpy.unique(maintab.getcol('SCAN_NUMBER')))
     ids,names,dirs = get_fields(myms)
 
-    logfile = 'sun_'+myms+'.log'
+    logfile = 'sun_'+mymsname+'.log'
     logging.basicConfig(filename=logfile, level=logging.DEBUG, format='%(asctime)s |  %(message)s', datefmt='%d/%m/%Y %H:%M:%S ')
 
 
-    logging.info(myms+' | '+str(len(ids))+' fields | '+str(len(scans))+' scans')
+    logging.info(mymsname+' | '+str(len(ids))+' fields | '+str(len(scans))+' scans')
     #header = 'Scan  Field        ID    t[iso]                    t[s]                 t0[s]                t1[s]                int0    int1    Duration[m]  N_int'
     header = '# t[iso]                     Scan  Field Name         SunRA[deg]   SunDec[deg]  SunRA[hms]       SunDec[dms]      SunSep[deg]  SunAlt[deg]  MoonRA[deg]  MoonDec[deg] MoonRA[hms]      MoonDec[dms]     MoonSep[deg] MoonAlt[deg]'
     logging.info('-'*len(header))

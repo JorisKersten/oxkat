@@ -10,6 +10,11 @@ import pickle
 import sys
 
 
+# The measurement set EPOCH measure is not standardised. We believe that our measurement sets use mjd*86400.0 .
+def epochinseconds_to_mjd(cur_time):
+    return Time(cur_time/86400.0,format='mjd') # An Astropy Time object is returned here.
+
+
 def main():
 
     if len(sys.argv) == 1:
@@ -17,11 +22,12 @@ def main():
         sys.exit()
     elif len(sys.argv) > 1:
         myms = sys.argv[1].rstrip('/')
-        logfile = 'scantimes_'+myms+'.log'
+        mymsname = myms.split('/')[-1]
+        logfile = 'scantimes_'+mymsname+'.log'
 
     if len(sys.argv) > 2:
         myscan = sys.argv[2]
-        logfile = 'scantimes_'+myms+'_scan'+myscan+'.log'
+        logfile = 'scantimes_'+mymsname+'_scan'+myscan+'.log'
     else:
         myscan = ''
 
@@ -47,12 +53,12 @@ def main():
     field_tab.done()
 
     scan_list = []
-    pickle_name = 'scantimes_'+myms+'.p'
+    pickle_name = 'scantimes_'+mymsname+'.p'
 
-    mylogger.info(myms+' | '+str(n_fields)+' fields | '+str(n_scans)+' scans | track = '+str(track_length)+' h | t_int = '+str(exposure)+' s')
+    mylogger.info(mymsname+' | '+str(n_fields)+' fields | '+str(n_scans)+' scans | track = '+str(track_length)+' h | t_int = '+str(exposure)+' s')
 
     if myscan == '':
-        header = 'Scan  Field        ID    t[iso]                    t[s]                 t0[s]                t1[s]                int0    int1    Duration[m]  N_int'
+        header = 'Scan  Field        ID    t[iso]                    t0[iso]                   t1[iso]                   t[s]                 t0[s]                t1[s]                int0    int1    Duration[m]  N_int'
         mylogger.info('-'*len(header))
         mylogger.info(header)
         mylogger.info('-'*len(header))
@@ -72,10 +78,12 @@ def main():
 #            n_int = int(dt / exposure) # Number of integration times in this scan. This is assuming that exposure is not just a mean, but also very similar to the exposure in each integration.
             n_int = int(dt / inttime) # Number of integration times in this scan.
             tc = (t0-inttime/2.0)+(dt/2.0) # Central time of this scan.
-            t_iso = Time(tc/86400.0,format='mjd').iso # Central time of this scan in ISO format.
+            tc_iso = epochinseconds_to_mjd(tc).iso # Central time of this scan in ISO format.
+            t0_iso = epochinseconds_to_mjd(t0).iso
+            t1_iso = epochinseconds_to_mjd(t1).iso
 
-            mylogger.info('%-5i %-12s %-5s %-25s %-20f %-20f %-20f %-7s %-7s %-12s %-5i' % 
-                (scan,field_name,field_id,t_iso,tc,t0,t1,int0,int1,duration,n_int))
+            mylogger.info('%-5i %-12s %-5s %-25s %-25s %-25s %-20f %-20f %-20f %-7s %-7s %-12s %-5i' % 
+                (scan,field_name,field_id,tc_iso,t0_iso,t1_iso,tc,t0,t1,int0,int1,duration,n_int))
 
             scan_list.append((scan,field_name,field_id,int0,int1,n_int))
 

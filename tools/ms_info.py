@@ -36,8 +36,9 @@ def main():
             sys.exit()
     else:
             myms = args[0].rstrip('/')
+            mymsname = myms.split('/')[-1]
 
-    logfile = 'msinfo_'+myms+'.log'
+    logfile = 'msinfo_'+mymsname+'.log'
 
     logging.basicConfig(filename=logfile, level=logging.DEBUG, format='%(asctime)s |  %(message)s', datefmt='%d/%m/%Y %H:%M:%S ')
     stream = logging.StreamHandler()
