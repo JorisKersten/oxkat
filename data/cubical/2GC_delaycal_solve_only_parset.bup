@@ -2,8 +2,8 @@
 _Help = Visibility data options
 ms = 
 column = DATA
-time-chunk = 96
-freq-chunk = 0
+time-chunk = 36
+freq-chunk = 1024
 rebin-time = 1
 rebin-freq = 1
 chunk-by = SCAN_NUMBER
@@ -22,11 +22,11 @@ diag = False
 
 [out]
 _Help = Options for output products
-dir = selfcal
-name = selfcal.cc-out/selfcal
+dir = delaycal
+name = delaycal.cc-out/delaycal
 overwrite = False
 backup = 1
-mode = sc
+mode = so
 apply-solver-flags = True
 column = CORRECTED_DATA
 derotate = None
@@ -124,14 +124,14 @@ flag-ant-thr = 5
 
 [sol]
 _Help = Solution options which apply at the solver level
-jones = K,G
+jones = K
 precision = 32
-delta-g = 1e-07
-delta-chi = 1e-07
+delta-g = 1e-06
+delta-chi = 1e-06
 chi-int = 5
 last-rites = True
 stall-quorum = 0.99
-term-iters = 60,60
+term-iters = 50,50
 flag-divergence = 0
 min-bl = 100.0
 max-bl = 0
@@ -148,7 +148,7 @@ plot = True
 
 [dist]
 _Help = Parallelization and distribution options
-ncpu = 8
+ncpu = 6
 nworker = 0
 nthread = 0
 max-chunks = 2
@@ -180,42 +180,37 @@ _Help = Miscellaneous options
 random-seed = None
 parset-version = 0.1
 
-
-[g]
-_Help = Options for G-Jones term
-label = G
+[k]
+_Help = Options for K-Jones term
+label = K
 solvable = 1
-type = complex-2x2
-delay-estimate-pad-factor = 8
+type = f-slope
 load-from = 
 xfer-from = 
-save-to = {out[name]}-{JONES}-field_{sel[field]}-ddid_{sel[ddid]}.parmdb
+save-to = delaycal.parmdb
 dd-term = 0
 fix-dirs = 
 update-type = full
-estimate-pzd = False
-time-int = 16
-freq-int = 0
-max-prior-error = 0.3
-max-post-error = 0.3
-low-snr-warn = 75
-high-gain-var-warn = 30
+time-int = 4
+freq-int = 1024
+max-prior-error = 0.0
+max-post-error = 0.0
 clip-low = 0.1
-clip-high = 10000
+clip-high = 10
 clip-after = 5
-max-iter = 60
-pin-slope-iters = 0
-epsilon = 1e-07
-delta-chi = 1e-07
+max-iter = 50
+epsilon = 1e-06
+delta-chi = 1e-06
 conv-quorum = 0.99
 ref-ant = None
 prop-flags = default
-diag-only = 0
-offdiag-only = False
+estimate-pzd = False
+diag-only = 1
+offdiag-only = 0
 robust-cov = compute
-robust-scale = 1
 robust-npol = 2
 robust-int = 1
 robust-save-weights = 0
-estimate-delays = False
 _Templated = True
+
+
