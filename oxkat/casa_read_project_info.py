@@ -4,7 +4,7 @@
 
 import json
 import sys
-execfile('oxkat/config.py')
+execfile('oxkat/config.py',globals())
 
 
 def str_iterator(inlist):
@@ -18,6 +18,8 @@ with open('project_info.json') as f:
 	project_info = json.load(f)
 
 master_ms = str(project_info['master_ms'])
+master_field_list = str(project_info['master_field_list'])
+master_scan_list = str(project_info['master_scan_list'])
 myms = str(project_info['working_ms'])
 band = str(project_info['band'])
 nchan = int(project_info['nchan'])
@@ -25,6 +27,9 @@ ref_ant = str(project_info['ref_ant'])
 bpcal = str(project_info['primary_id'])
 bpcal_name = str(project_info['primary_name'])
 primary_tag = str(project_info['primary_tag'])
+polarcal = str(project_info['polcal_id'])
+polarcal_name = str(project_info['polcal_name'])
+polarcal_tag = str(project_info['polcal_tag'])
 pcal_names = str_iterator(project_info['secondary_names'])
 pcals = str_iterator(project_info['secondary_ids'])
 pcal_dirs = project_info['secondary_dirs']

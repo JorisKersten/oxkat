@@ -62,18 +62,19 @@ HIPPO_CONTAINER_PATH = None
 NODE_CONTAINER_PATH = [HOME+'/containers/']
 
 
-ASTROPY_PATTERN = 'oxkat-0.4'
-CASA_PATTERN = 'oxkat-0.4'
-CLUSTERCAT_PATTERN = 'oxkat-0.4'
-CUBICAL_PATTERN = 'oxkat-0.4'
-DDFACET_PATTERN = 'oxkat-0.4'
-KILLMS_PATTERN = 'oxkat-0.4'
-OWLCAT_PATTERN = 'oxkat-0.4'
-PYBDSF_PATTERN = 'oxkat-0.4'
-RAGAVI_PATTERN = 'oxkat-0.4'
-SHADEMS_PATTERN = 'oxkat-0.4'
-TRICOLOUR_PATTERN = 'oxkat-0.4'
-WSCLEAN_PATTERN = 'oxkat-0.4'
+ASTROPY_PATTERN = 'oxkat-0.5_vol2'
+CASA_PATTERN = 'oxkat-0.5_vol1'
+CLUSTERCAT_PATTERN = 'oxkat-0.5_vol3'
+CUBICAL_PATTERN = 'oxkat-0.5_vol2'
+DDFACET_PATTERN = 'oxkat-0.5_vol3'
+KILLMS_PATTERN = 'oxkat-0.5_vol3'
+OWLCAT_PATTERN = 'oxkat-0.5_vol2'
+PACOR_PATTERN = 'oxkat-0.5_vol3'
+PYBDSF_PATTERN = 'oxkat-0.5_vol3'
+RAGAVI_PATTERN = 'oxkat-0.5_vol1'
+SHADEMS_PATTERN = 'oxkat-0.5_vol2'
+TRICOLOUR_PATTERN = 'oxkat-0.5_tricolour'
+WSCLEAN_PATTERN = 'oxkat-0.5_vol2'
 
 
 # ------------------------------------------------------------------------
@@ -85,7 +86,7 @@ SLURM_ACCOUNT = 'b24-thunderkat-ag' # e.g. b09-mightee-ag, b19-meerlicht-ag
 SLURM_RESERVATION = '' # e.g. lsp-mightee, lsp-thunderkat
 
 SLURM_NODELIST = '' # Specify node(s) to use
-SLURM_EXCLUDE = '' # Specify node(s) to exclude
+SLURM_EXCLUDE = 'highmem-003' # Specify node(s) to exclude
 
 
 SLURM_DEFAULTS = {
@@ -190,7 +191,7 @@ CAL_1GC_SECONDARY_INTENT = 'PHASE'   # (partial) string to match for secondary i
 PRE_FIELDS = ''                      # Comma-separated list of fields to select from raw MS
 PRE_SCANS = ''                       # Comma-separated list of scans to select from raw MS
 PRE_NCHANS = 1024                    # Integer number of channels for working MS
-PRE_TIMEBIN = '8s'                   # Integration time for working MS
+PRE_TIMEBIN = ''                     # Integration time for working MS, leave empty for no averaging
 
 # Reference antennas
 CAL_1GC_REF_ANT = 'auto'             # Comma-separated list to manually specify refant(s)
@@ -213,6 +214,19 @@ CAL_1GC_PRIMARY_MODEL = 'auto'       # setjy = use setjy component model only
 # GBK settings
 CAL_1GC_DELAYCUT = 2.5               # [now defunct] Jy at central freq. Do not solve for K on secondaries weaker than this
 CAL_1GC_FILLGAPS = 24                # Maximum channel gap over which to interpolate bandpass solutions
+
+
+
+# Polarisation settings
+CAL_1GC_DOPOL = True                 # Set to False to not perform 1GC pol cal, even if a valid polarisation calibrator is present
+CAL_1GC_PAWORKERS = 8                # Number of parallel instances of parallactic angle correction processes
+
+# Base models for polarisation calibrators
+# Band-specific modifiers can be implemented in their relevant sections below
+
+# fluxdensity, spix, reffreq, polindex, polangle
+CAL_1GC_3C138_MODEL = ([8.4012],[-0.54890527955337987, -0.069418066176041668, -0.0018858519926001926],'1.45GHz',[0.075],[-0.19199])
+CAL_1GC_3C286_MODEL = ([14.918703],[-0.50593909976893958,-0.070580431627712076,0.0067337240268301466],'1.45GHz',[0.095],[0.575959])
 
 # Band specific options
 
@@ -241,7 +255,7 @@ elif BAND == 'L':
     CAL_1GC_BL_FLAG_UVRANGE = '<600'
     CAL_1GC_BL_FREQS = ['*:900MHz~915MHz',    # GSM and aviation
                         '*:925MHz~960MHz',                
-                        '*:1080MHz~1095MHz',
+                        '*:1080MHz~1095MHz',  # Aircraft transponder response
                         '*:1565MHz~1585MHz',  # GPS
                         '*:1217MHz~1237MHz',
                         '*:1375MHz~1387MHz',
@@ -254,14 +268,13 @@ elif BAND == 'L':
                         '*:1616MHz~1626MHz',  # Iridium
                         '*:1526MHz~1554MHz',  # Inmarsat
                         '*:1600MHz']          # Alkantpan
-                                            # https://github.com/ska-sa/MeerKAT-Cookbook/blob/master/casa/L-band%20RFI%20frequency%20flagging.ipynb
+                                              # https://github.com/ska-sa/MeerKAT-Cookbook/blob/master/casa/L-band%20RFI%20frequency%20flagging.ipynb
 
 elif BAND == 'S0':
 
     CAL_1GC_FREQRANGE = '*:2300~2400MHz'
     CAL_1GC_UVRANGE = '>150m'
     CAL_1GC_0408_MODEL = ([9.193,0.0,0.0,0.0],[-1.144],'2187MHz')   
-    CAL_1GC_BAD_FREQS = []
     CAL_1GC_BAD_FREQS = ['*:1700~1800MHz',    # Lower band edge 
                         '*:2500~2650MHz']     # Upper band edge
     CAL_1GC_BL_FLAG_UVRANGE = '<600'
@@ -271,8 +284,9 @@ elif BAND == 'S1':
 
     CAL_1GC_FREQRANGE = ''
     CAL_1GC_UVRANGE = '>150m'
-    CAL_1GC_0408_MODEL = ([6.432,0.0,0.0,0.0],[-1.124],'3000MHz')   
-    CAL_1GC_BAD_FREQS = []
+    CAL_1GC_0408_MODEL = ([8.244,0.0,0.0,0.0],[-1.138],'2406MHz')   
+    CAL_1GC_BAD_FREQS = ['*:1967~2056MHz',    # Lower band edge 
+                        '*:2756~2845MHz']     # Upper band edge
     CAL_1GC_BL_FLAG_UVRANGE = '<600'
     CAL_1GC_BL_FREQS = []
 
@@ -280,8 +294,9 @@ elif BAND == 'S2':
 
     CAL_1GC_FREQRANGE = ''
     CAL_1GC_UVRANGE = '>150m'
-    CAL_1GC_0408_MODEL = ([6.432,0.0,0.0,0.0],[-1.124],'3000MHz')   
-    CAL_1GC_BAD_FREQS = []
+    CAL_1GC_0408_MODEL = ([7.468,0.0,0.0,0.0],[-1.133],'2625MHz')   
+    CAL_1GC_BAD_FREQS = ['*:2187~2275MHz',    # Lower band edge 
+                        '*:2975~3063MHz']     # Upper band edge
     CAL_1GC_BL_FLAG_UVRANGE = '<600'
     CAL_1GC_BL_FREQS = []
 
@@ -289,8 +304,9 @@ elif BAND == 'S3':
 
     CAL_1GC_FREQRANGE = ''
     CAL_1GC_UVRANGE = '>150m'
-    CAL_1GC_0408_MODEL = ([6.432,0.0,0.0,0.0],[-1.124],'3000MHz')   
-    CAL_1GC_BAD_FREQS = []
+    CAL_1GC_0408_MODEL = ([6.822,0.0,0.0,0.0],[-1.128],'2483MHz')   
+    CAL_1GC_BAD_FREQS = ['*:2405~2493MHz',    # Lower band edge 
+                        '*:3194~3282MHz']     # Upper band edge
     CAL_1GC_BL_FLAG_UVRANGE = '<600'
     CAL_1GC_BL_FREQS = []
 
@@ -298,7 +314,7 @@ elif BAND == 'S4':
 
     CAL_1GC_FREQRANGE = '*:2900~3000MHz'
     CAL_1GC_UVRANGE = '>150m'     
-    CAL_1GC_0408_MODEL = ([6.432,0.0,0.0,0.0],[-1.124],'3000MHz')   
+    CAL_1GC_0408_MODEL = ([6.423,0.0,0.0,0.0],[-1.124],'3000MHz')   
     CAL_1GC_BAD_FREQS = ['*:2600~2690MHz',    # Lower band edge 
                         '*:3420~3600MHz']     # Upper band edge
     CAL_1GC_BL_FLAG_UVRANGE = '<600'
@@ -565,7 +581,7 @@ KMS_NCPU = 16
 KMS_DOBAR = 0
 KMS_DEBUGPDB = 0
 # [Solvers]
-KMS_SOLVERTYPE = 'CohJones'
+KMS_SOLVERTYPE = 'KAFCA' # or 'CohJones', note case sensitivity
 KMS_DT = 5
 KMS_NCHANSOLS = 8
 # [KAFCA]

@@ -186,12 +186,13 @@ def main():
             step['dependency'] = 1
             step['id'] = 'KILMS'+code
             step['slurm_config'] = cfg.SLURM_HIGHMEM
+            step['slurm_exclude'] = 'highmem-003' 
             step['pbs_config'] = cfg.PBS_WSCLEAN
             syscall = CONTAINER_RUNNER+KILLMS_CONTAINER+' ' if USE_SINGULARITY else ''
             syscall += gen.generate_syscall_killms(myms=myms,
                         baseimg=ddf_img_prefix,
                         ncpu=myNCPU,
-                        outsols='killms-cohjones',
+                        outsols='killms-'+cfg.KMS_SOLVERTYPE,
                         nodesfile=CAL_3GC_FACET_REGION+'.npy')
             step['syscall'] = syscall
             steps.append(step)
@@ -199,6 +200,17 @@ def main():
 
             step = {}
             step['step'] = 3
+            step['comment'] = 'Plot killMS solutions'
+            step['dependency'] = 2
+            step['id'] = 'PLKMS'+code
+            syscall = CONTAINER_RUNNER+ASTROPY_CONTAINER+' ' if USE_SINGULARITY else ''
+            syscall += 'python3 '+OXKAT+'/PLOT_killMS_sols.py '+myms+' killms-'+cfg.KMS_SOLVERTYPE
+            step['syscall'] = syscall
+            steps.append(step)
+
+
+            step = {}
+            step['step'] = 4
             step['comment'] = 'Run DDFacet on CORRECTED_DATA of '+myms+', applying killMS solutions'
             step['dependency'] = 2
             step['id'] = 'DDKMA'+code
@@ -213,7 +225,7 @@ def main():
                         hogbom_maxmajoriter=0,
                         hogbom_maxminoriter=1000,
                         mask=mask,
-                        ddsols='killms-cohjones')
+                        ddsols='killms-'+cfg.KMS_SOLVERTYPE)
             step['syscall'] = syscall
             steps.append(step)
 
@@ -232,7 +244,7 @@ def main():
             step = {}
             step['step'] = 5
             step['comment'] = 'Apply primary beam correction to '+targetname+' 3GC DDFacet image'
-            step['dependency'] = 3
+            step['dependency'] = 4
             step['id'] = 'PBCO2'+code
             syscall = CONTAINER_RUNNER+ASTROPY_CONTAINER+' ' if USE_SINGULARITY else ''
             syscall += 'python3 '+TOOLS+'/pbcor_katbeam.py --band '+band[0]+' --freqaxis 4 '+kms_img_prefix+'.app.restored.fits'

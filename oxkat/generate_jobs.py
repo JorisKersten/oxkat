@@ -17,7 +17,7 @@ from oxkat import config as cfg
 def preamble():
     print('---------------------+----------------------------------------------------------')
     print('                     |')
-    print('                     | v0.4')  
+    print('                     | v0.5')  
     print('    o  x  k  a  t    | Please file an issue for bugs / help:')
     print('                     | https://github.com/IanHeywood/oxkat')
     print('                     |')
@@ -118,7 +118,7 @@ def get_container(pathlist,pattern,use_singularity):
     if len(ll) > 1:
         opstr += ' (multiple matches)'
     if opstr not in container_list:
-        print(col('Found container')+opstr)
+        print(col('Using container')+opstr)
         container_list.append(opstr)
     return container
 
@@ -336,6 +336,59 @@ def job_handler(syscall,
     return run_command
 
 
+def step_handler(steps,submit_file,kill_file,infrastructure):
+
+    f = open(submit_file,'w')
+    f.write('#!/usr/bin/env bash\n')
+    f.write('export SINGULARITY_BINDPATH='+cfg.BINDPATH+'\n')
+
+    id_list = []
+    
+    for step in steps:
+
+        step_id = step['id']
+        id_list.append(step_id)
+        step_dependency = step['dependency']
+        if step_dependency is not None:
+            if isinstance(step_dependency,list):
+                dependency = ':'.join(steps[ii]['id'] for ii in step_dependency)
+            else:
+                dependency = steps[step_dependency]['id']
+        else:
+            dependency = None
+        syscall = step['syscall']
+        if 'slurm_config' in step.keys():
+            slurm_config = step['slurm_config']
+        else:
+            slurm_config = cfg.SLURM_DEFAULTS
+        if 'pbs_config' in step.keys():
+            pbs_config = step['pbs_config']
+        else:
+            pbs_config = cfg.PBS_DEFAULTS
+        comment = step['comment']
+
+        run_command = job_handler(syscall = syscall,
+                        jobname = step_id,
+                        infrastructure = infrastructure,
+                        dependency = dependency,
+                        slurm_config = slurm_config,
+                        pbs_config = pbs_config)
+
+        f.write('\n# '+comment+'\n')
+        f.write(run_command)
+
+    if infrastructure == 'idia' or infrastructure == 'hippo':
+        kill = '\necho "scancel "$'+'" "$'.join(id_list)+' > '+kill_file+'\n'
+        f.write(kill)
+    elif infrastructure == 'chpc':
+        kill = '\necho "qdel "$'+'" "$'.join(id_list)+' > '+kill_file+'\n'
+        f.write(kill)
+    
+    f.close()
+
+    make_executable(submit_file)
+
+
 def mem_string_to_gb(mem):
     headroom = 0.98 # fraction of memory specified in IDIA/CHPC config to convert to absmem (hippo a special case)
     mem = mem.upper().replace('B','')
@@ -385,6 +438,28 @@ def get_scan_times(scanpickle):
         scan_times.append((field,scans,intervals))
     return scan_times
 
+
+def generate_target_subms_list(myms,master_scan_list,master_field_list,user_scans,target_ids):
+    # 1704699392_sdp_l0_1024ch.ms/SUBMSS/1704699392_sdp_l0_1024ch.ms.0002.ms
+    subms_ids = []
+    master_scan_list = master_scan_list.split(',')
+    master_field_list = master_field_list.split(',')
+    if len(user_scans) == 0:
+        for i in range(0,len(master_scan_list)):
+            if master_field_list[i] in target_ids:
+                subms_ids.append(master_scan_list[i-1]) # -1 because sub-ms are zero indexed, scans are not
+    else:
+        user_scans = user_scans.split(',')
+        user_field_list = [master_field_list[i] for i in user_scans]
+        for i in range(0,len(user_scans)):
+            if user_field_list[i-1] in target_ids:
+                subms_ids.append(i)
+    subms_list = []
+    for i in range(0,len(subms_ids)):
+        idx = str(subms_ids[i]).zfill(4)
+        subms = myms+'/SUBMSS/'+myms+'.'+idx+'.ms'
+        subms_list.append(subms)
+    return subms_list
 
 
 def generate_syscall_casa(casascript,casalogfile='',extra_args=''):

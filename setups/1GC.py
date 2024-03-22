@@ -17,15 +17,49 @@ def main():
 
     USE_SINGULARITY = cfg.USE_SINGULARITY
 
+    with open('project_info.json') as f:
+        project_info = json.load(f)
+
     gen.preamble()
+
+    # ------------------------------------------------------------------------------
+    #
+    # Print some summary info to let us know some important assumptions
+    #
+    # ------------------------------------------------------------------------------
+
+
+    if cfg.PRE_FIELDS != '':
+        print(gen.col()+'Field selection is '+cfg.PRE_FIELDS)
+    else:
+        print(gen.col()+'All fields selected')
+    if cfg.PRE_SCANS != '':
+        print(gen.col()+'Scan selection is '+cfg.PRE_SCANS)
+    else:
+        print(gen.col()+'All scans selected')
+
+    primary_name = project_info['primary_name']
+    print(gen.col()+f'Using primary calibrator {primary_name}')
+
+    dopol = cfg.CAL_1GC_DOPOL
+    if not dopol:
+        print(gen.col()+'Polarisation cal disabled as per config file')
+    else:
+        polcal_tag = project_info['polcal_tag']
+        if polcal_tag == 'None':
+            print(gen.col()+'No polarisation calibrator found in this MS')
+            dopol = False
+        else:
+            print(gen.col()+f'Using polarisation calibrator {polcal_tag}')
+
+    gen.print_spacer()
     print(gen.col()+'1GC (referenced calibration) setup')
     gen.print_spacer()
 
-    if cfg.PRE_FIELDS != '':
-        print(gen.col('Field selection')+cfg.PRE_FIELDS)
-    if cfg.PRE_SCANS != '':
-        print(gen.col('Scan selection')+cfg.PRE_SCANS)
-    gen.print_spacer()
+    if float(project_info['integration_time'][0]) < 3.0:
+        print(gen.col('Heads up!')+'These are 2 sec data, check for removal of bad scans')
+        gen.print_spacer()
+
 
     # ------------------------------------------------------------------------------
     #
@@ -47,9 +81,10 @@ def main():
 
 
     CASA_CONTAINER = gen.get_container(CONTAINER_PATH,cfg.CASA_PATTERN,USE_SINGULARITY)
-    OWLCAT_CONTAINER = gen.get_container(CONTAINER_PATH,cfg.OWLCAT_PATTERN,USE_SINGULARITY)
+    PACOR_CONTAINER = gen.get_container(CONTAINER_PATH,cfg.PACOR_PATTERN,USE_SINGULARITY)
     RAGAVI_CONTAINER = gen.get_container(CONTAINER_PATH,cfg.RAGAVI_PATTERN,USE_SINGULARITY)
     SHADEMS_CONTAINER = gen.get_container(CONTAINER_PATH,cfg.SHADEMS_PATTERN,USE_SINGULARITY)
+    TRICOLOUR_CONTAINER = gen.get_container(CONTAINER_PATH,cfg.TRICOLOUR_PATTERN,USE_SINGULARITY)
 
 
     # ------------------------------------------------------------------------------
@@ -59,12 +94,14 @@ def main():
     # ------------------------------------------------------------------------------
 
 
-    with open('project_info.json') as f:
-        project_info = json.load(f)
-
     myms = project_info['master_ms']
+    working_ms = project_info['working_ms']
+    master_scan_list = project_info['master_scan_list']
+    master_field_list = project_info['master_field_list']
+    target_ids = project_info['target_ids']
+    user_scans = cfg.PRE_SCANS
     code = gen.get_code(myms)
-
+    target_subms_list = gen.generate_target_subms_list(working_ms,master_scan_list,master_field_list,user_scans,target_ids)
     steps = []
 
 
@@ -74,15 +111,28 @@ def main():
     step['dependency'] = None
     step['id'] = 'SPPRE'+code
     syscall = CONTAINER_RUNNER+CASA_CONTAINER+' ' if USE_SINGULARITY else ''
-    syscall += gen.generate_syscall_casa(casascript=cfg.OXKAT+'/PRE_casa_average_to_1k_add_wtspec.py')
+    syscall += gen.generate_syscall_casa(casascript=cfg.OXKAT+'/PRE_casa_average_ms.py')
+    step['syscall'] = syscall
+    steps.append(step)
+
+
+    # This can be parallelised with subMS
+
+    step = {}
+    step['step'] = 1
+    step['comment'] = 'Correct parallactic angle of working MS'
+    step['dependency'] = 0
+    step['id'] = 'PACOR'+code
+    syscall = CONTAINER_RUNNER+PACOR_CONTAINER+' ' if USE_SINGULARITY else ''
+    syscall += 'python3 '+cfg.OXKAT+'/PRE_correct_parang.py'
     step['syscall'] = syscall
     steps.append(step)
 
 
     step = {}
-    step['step'] = 1
+    step['step'] = 2
     step['comment'] = 'Apply basic flagging steps to all fields'
-    step['dependency'] = 0
+    step['dependency'] = 1
     step['id'] = 'FGBAS'+code
     syscall = CONTAINER_RUNNER+CASA_CONTAINER+' ' if USE_SINGULARITY else ''
     syscall += gen.generate_syscall_casa(casascript=cfg.OXKAT+'/1GC_02_casa_basic_flags.py')
@@ -91,9 +141,9 @@ def main():
 
 
     step = {}
-    step['step'] = 2
+    step['step'] = 3
     step['comment'] = 'Run auto-flaggers on calibrators'
-    step['dependency'] = 1
+    step['dependency'] = 2
     step['id'] = 'FGCAL'+code
     syscall = CONTAINER_RUNNER+CASA_CONTAINER+' ' if USE_SINGULARITY else ''
     syscall += gen.generate_syscall_casa(casascript=cfg.OXKAT+'/1GC_05_casa_autoflag_cals_DATA.py')
@@ -102,9 +152,9 @@ def main():
 
 
     step = {}
-    step['step'] = 3
+    step['step'] = 4
     step['comment'] = 'Generate reference calibration solutions and apply to target(s)'
-    step['dependency'] = 2
+    step['dependency'] = 3
     step['id'] = 'CL1GC'+code
     syscall = CONTAINER_RUNNER+CASA_CONTAINER+' ' if USE_SINGULARITY else ''
     syscall += gen.generate_syscall_casa(casascript=cfg.OXKAT+'/1GC_casa_refcal.py')
@@ -113,20 +163,49 @@ def main():
 
 
     step = {}
-    step['step'] = 4
+    step['step'] = 5
     step['comment'] = 'Plot the gain solutions'
-    step['dependency'] = 3
+    step['dependency'] = 4
     step['id'] = 'PLTAB'+code
     syscall = CONTAINER_RUNNER+RAGAVI_CONTAINER+' ' if USE_SINGULARITY else ''
-    syscall += 'python3 '+cfg.OXKAT+'/PLOT_gaintables.py cal_1GC_*'
+    syscall += 'python3 '+cfg.OXKAT+'/PLOT_gaintables.py B0,B1,G0,G1,G2,K0,K1,K2,K3,flux2,flux3'
     step['syscall'] = syscall
     steps.append(step)
 
 
+    loop_dependencies = []
+    n_steps1 = len(target_subms_list)
+    d = n_steps1 - 1 # d for delta, loop offset for subsequent step numbers
+                     # use d+= ... for additional MMS loops
+
+    for i in range(0,n_steps1):
+
+        subms = target_subms_list[i]
+        code_i = gen.get_mms_code(subms)
+
+        step = {}
+
+        step['step'] = 6+i
+        step['comment'] = 'Run Tricolour on '+subms
+        step['dependency'] = 4
+        step['id'] = 'T'+code_i+'_'+code
+        step['slurm_config'] = cfg.SLURM_TRICOLOUR
+        step['pbs_config'] = cfg.PBS_TRICOLOUR
+        syscall = CONTAINER_RUNNER+TRICOLOUR_CONTAINER+' ' if USE_SINGULARITY else ''
+        syscall += gen.generate_syscall_tricolour(myms = subms,
+                    config = cfg.DATA+'/tricolour/target_flagging_1.yaml',
+                    datacol = 'CORRECTED_DATA',
+                    strategy = 'polarisation')
+        step['syscall'] = syscall
+        steps.append(step)
+
+        loop_dependencies.append(6+i)
+
+
     step = {}
-    step['step'] = 5
+    step['step'] = 7+d
     step['comment'] = 'Split the corrected target data'
-    step['dependency'] = 3
+    step['dependency'] = loop_dependencies #[x+6 for x in loop_dependencies]
     step['id'] = 'SPTRG'+code
     syscall = CONTAINER_RUNNER+CASA_CONTAINER+' ' if USE_SINGULARITY else ''
     syscall += gen.generate_syscall_casa(casascript=cfg.OXKAT+'/1GC_09_casa_split_targets.py')
@@ -135,14 +214,50 @@ def main():
 
 
     step = {}
-    step['step'] = 6
+    step['step'] = 8+d
     step['comment'] = 'Plot the corrected calibrator visibilities'
-    step['dependency'] = 5
-    step['id'] = 'PLVIS'+code
+    step['dependency'] = 7+d
+    step['id'] = 'PLCAL'+code
     syscall = CONTAINER_RUNNER+SHADEMS_CONTAINER+' ' if USE_SINGULARITY else ''
     syscall += 'python3 '+cfg.OXKAT+'/1GC_10_plot_visibilities.py'
     step['syscall'] = syscall
     steps.append(step)
+
+
+    if dopol:
+
+
+        step = {}
+        step['step'] = 9+d
+        step['comment'] = 'Perform basic polarisation calibration'
+        step['dependency'] = 8+d
+        step['id'] = 'POLAR'+code
+        syscall = CONTAINER_RUNNER+CASA_CONTAINER+' ' if USE_SINGULARITY else ''
+        syscall += gen.generate_syscall_casa(casascript=cfg.OXKAT+'/1GC_11_casa_polcal.py')
+        step['syscall'] = syscall
+        steps.append(step)
+
+
+        step = {}
+        step['step'] = 10+d
+        step['comment'] = 'Plot the polarisation gain solutions'
+        step['dependency'] = 9+d
+        step['id'] = 'PLTAP'+code
+        syscall = CONTAINER_RUNNER+RAGAVI_CONTAINER+' ' if USE_SINGULARITY else ''
+        syscall += 'python3 '+cfg.OXKAT+'/PLOT_gaintables.py KX,Xf,D,Df,Df_preflag'
+        step['syscall'] = syscall
+        steps.append(step)
+
+
+        step = {}
+        step['step'] = 11+d
+        step['comment'] = 'Plot the corrected polarisation calibrator visibilities (post-polcal)'
+        step['dependency'] = 9+d
+        step['id'] = 'PLPOL'+code
+        syscall = CONTAINER_RUNNER+SHADEMS_CONTAINER+' ' if USE_SINGULARITY else ''
+        syscall += 'python3 '+cfg.OXKAT+'/1GC_12_plot_polcal_visibilities.py polcal'
+        step['syscall'] = syscall
+        steps.append(step)
 
 
     # ------------------------------------------------------------------------------
@@ -154,58 +269,11 @@ def main():
 
     submit_file = 'submit_1GC_jobs.sh'
     kill_file = cfg.SCRIPTS+'/kill_1GC_jobs.sh'
-
-    f = open(submit_file,'w')
-    f.write('#!/usr/bin/env bash\n')
-    f.write('export SINGULARITY_BINDPATH='+cfg.BINDPATH+'\n')
-
-    id_list = []
-
-    for step in steps:
-
-        step_id = step['id']
-        id_list.append(step_id)
-        if step['dependency'] is not None:
-            dependency = steps[step['dependency']]['id']
-        else:
-            dependency = None
-        syscall = step['syscall']
-        if 'slurm_config' in step.keys():
-            slurm_config = step['slurm_config']
-        else:
-            slurm_config = cfg.SLURM_DEFAULTS
-        if 'pbs_config' in step.keys():
-            pbs_config = step['pbs_config']
-        else:
-            pbs_config = cfg.PBS_DEFAULTS
-        comment = step['comment']
-
-        run_command = gen.job_handler(syscall = syscall,
-                        jobname = step_id,
-                        infrastructure = INFRASTRUCTURE,
-                        dependency = dependency,
-                        slurm_config = slurm_config,
-                        pbs_config = pbs_config)
-
-
-        f.write('\n# '+comment+'\n')
-        f.write(run_command)
-
-
-    if INFRASTRUCTURE == 'idia' or INFRASTRUCTURE == 'hippo':
-        kill = '\necho "scancel "$'+'" "$'.join(id_list)+' > '+kill_file+'\n'
-        f.write(kill)
-    elif INFRASTRUCTURE == 'chpc':
-        kill = '\necho "qdel "$'+'" "$'.join(id_list)+' > '+kill_file+'\n'
-        f.write(kill)
-    
-    f.close()
-
-    gen.make_executable(submit_file)
-
+    gen.step_handler(steps,submit_file,kill_file,INFRASTRUCTURE)
     gen.print_spacer()
     print(gen.col('Run file')+submit_file)
     gen.print_spacer()
+
 
     # ------------------------------------------------------------------------------
 

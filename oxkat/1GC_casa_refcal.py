@@ -4,10 +4,10 @@
 import glob
 import shutil
 import time
+import datetime
 
-
-execfile('oxkat/casa_read_project_info.py')
-execfile('oxkat/config.py')
+execfile('oxkat/casa_read_project_info.py',globals())
+execfile('oxkat/config.py',globals())
 
 if PRE_FIELDS != '':
     targets = user_targets
@@ -26,6 +26,13 @@ gapfill = CAL_1GC_FILLGAPS
 myuvrange = CAL_1GC_UVRANGE 
 myspw = CAL_1GC_FREQRANGE
 
+if CAL_1GC_DOPOL and polarcal_tag != '':
+    print('Polarisation cal is on, enforcing refant mode = strict')
+    ref_ant = ref_ant[0]
+    ref_ant_mode = 'strict'
+else:
+    print('No polarisation cal is being performed, using refant pool')
+    ref_ant_mode = 'flex'
 
 # ------- Setup names
 
@@ -112,6 +119,7 @@ gaincal(vis=myms,
     #spw=myspw,
     caltable=ktab0,
     refant = str(ref_ant),
+    refantmode = ref_ant_mode,
     gaintype = 'K',
     solint = 'inf',
     parang=False)
@@ -124,6 +132,8 @@ gaincal(vis=myms,
     field=bpcal_name,
     uvrange=myuvrange,
     caltable=gtab0,
+    refant = str(ref_ant),
+    refantmode = ref_ant_mode,
     gaintype='G',
     solint='inf',
     calmode='p',
@@ -205,6 +215,7 @@ gaincal(vis=myms,
     field=bpcal_name,
     caltable=ktab1,
     refant = str(ref_ant),
+    refantmode = ref_ant_mode,
     gaintype = 'K',
     solint = 'inf',
     parang=False,
@@ -283,8 +294,10 @@ gaincal(vis = myms,
     spw = myspw,
     caltable = gtab2,
     refant = str(ref_ant),
+    refantmode = ref_ant_mode,
     solint = 'inf',
     solnorm = False,
+    gaintype = 'T',
     combine = '',
     minsnr = 3,
     calmode = 'ap',
@@ -296,12 +309,8 @@ gaincal(vis = myms,
 
 
 # ------- Duplicate K1
-# ------- Duplicate G2 (to save repetition of above step)
-
 
 shutil.copytree(ktab1,ktab2)
-shutil.copytree(gtab2,gtab3)
-
 
 # ------- Looping over secondaries
 
@@ -321,11 +330,12 @@ for i in range(0,len(pcals)):
         spw = myspw,
         caltable = gtab2,     
         refant = str(ref_ant),
+        refantmode = ref_ant_mode,
         minblperant = 4,
         minsnr = 3,
         solint = 'inf',
         solnorm = False,
-        gaintype = 'G',
+        gaintype = 'T',
         combine = '',
         calmode = 'ap',
         parang = False,
@@ -342,14 +352,15 @@ for i in range(0,len(pcals)):
         field = pcal,
     #   uvrange = myuvrange,
     #   spw=myspw,
-        caltable = ktab1,
+        caltable = ktab2,
         refant = str(ref_ant),
+        refantmode = ref_ant_mode,
         gaintype = 'K',
         solint = 'inf',
         parang = False,
         gaintable = [gtab1,bptab1,gtab2],
         gainfield = [bpcal_name,bpcal_name,pcal],
-        interp = ['nearest','linear','linear','linear'],
+        interp = ['nearest','linear','linear'],
         append = True)
 
 
@@ -417,8 +428,10 @@ gaincal(vis = myms,
     spw = myspw,
     caltable = gtab3,
     refant = str(ref_ant),
+    refantmode = ref_ant_mode,
     solint = 'inf',
     solnorm = False,
+    gaintype = 'T',
     combine = '',
     minsnr = 3,
     calmode = 'ap',
@@ -453,11 +466,12 @@ for i in range(0,len(pcals)):
         spw = myspw,
         caltable = gtab3,     
         refant = str(ref_ant),
+        refantmode = ref_ant_mode,
         minblperant = 4,
         minsnr = 3,
         solint = 'inf',
         solnorm = False,
-        gaintype = 'G',
+        gaintype = 'T',
         combine = '',
         calmode = 'ap',
         parang = False,
@@ -474,6 +488,7 @@ for i in range(0,len(pcals)):
         field = pcal,
         caltable = ktab3,
         refant = str(ref_ant),
+        refantmode = ref_ant_mode,
         gaintype = 'K',
         solint = 'inf',
         parang = False,
