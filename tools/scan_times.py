@@ -58,7 +58,7 @@ def main():
     mylogger.info(mymsname+' | '+str(n_fields)+' fields | '+str(n_scans)+' scans | track = '+str(track_length)+' h | t_int = '+str(exposure)+' s')
 
     if myscan == '':
-        header = 'Scan  Field        ID    t[iso]                    t0[iso]                   t1[iso]                   t[s]                 t0[s]                t1[s]                int0    int1    Duration[m]  N_int'
+        header = 'Scan Field        ID t[isot]                  t0[isot]                 t1[isot]                 t[s]               t0[s]              t1[s]              int0    int1    Duration[m] N_int'
         mylogger.info('-'*len(header))
         mylogger.info(header)
         mylogger.info('-'*len(header))
@@ -76,14 +76,18 @@ def main():
             dt = (t1-t0) + inttime # Duration of this scan.
             duration = round((dt/60.0),2) # Duration in minutes.
 #            n_int = int(dt / exposure) # Number of integration times in this scan. This is assuming that exposure is not just a mean, but also very similar to the exposure in each integration.
-            n_int = int(dt / inttime) # Number of integration times in this scan.
+            n_int = int(round(dt / inttime)) # Number of integration times in this scan.
+#            n_int = int1 - int0 + 1
             tc = (t0-inttime/2.0)+(dt/2.0) # Central time of this scan.
             tc_iso = epochinseconds_to_mjd(tc).iso # Central time of this scan in ISO format.
+            tc_isot = epochinseconds_to_mjd(tc).isot
             t0_iso = epochinseconds_to_mjd(t0).iso
+            t0_isot = epochinseconds_to_mjd(t0).isot
             t1_iso = epochinseconds_to_mjd(t1).iso
+            t1_isot = epochinseconds_to_mjd(t1).isot
 
-            mylogger.info('%-5i %-12s %-5s %-25s %-25s %-25s %-20f %-20f %-20f %-7s %-7s %-12s %-5i' % 
-                (scan,field_name,field_id,tc_iso,t0_iso,t1_iso,tc,t0,t1,int0,int1,duration,n_int))
+            mylogger.info('%-4i %-12s %-2s %-24s %-24s %-24s %-18f %-18f %-18f %-7s %-7s %-11s %-5i' % 
+                (scan,field_name,field_id,tc_isot,t0_isot,t1_isot,tc,t0,t1,int0,int1,duration,n_int))
 
             scan_list.append((scan,field_name,field_id,int0,int1,n_int))
 
