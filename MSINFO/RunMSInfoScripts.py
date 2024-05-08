@@ -20,8 +20,9 @@ from datetime import datetime, timezone
 
 # Settings.
 container="/idia/software/containers/oxkat-0.42.sif"
-basedir="/scratch3/users/name/dir/"
-scriptdir=basedir
+# basedir="/scratch3/users/username/object/oxkatversion/sourcedir/"
+basedir="../"
+scriptdir=basedir + "MSINFO/"
 ProcessMeasurementSets = True
 MeasurementSetNumbers = [1,]   # These MeasurementSets will be processed if ProcessMeasurementSets is True.
 
@@ -33,7 +34,7 @@ print("")
 
 
 # Check if basedir is a directory.
-BasedirPath = Path(basedir)
+BasedirPath = Path(basedir).resolve()
 print("BasedirPath: {}\n".format(BasedirPath))
 if not BasedirPath.exists():
     with suppress(OSError): os.fsync(sys.stdout.fileno())
@@ -63,7 +64,7 @@ else:
     print("Processing MeasurementSets.\n")
 
 
-ContainerPath = Path(container)
+ContainerPath = Path(container).resolve()
 if not ContainerPath.exists():
     with suppress(OSError): os.fsync(sys.stdout.fileno())
     raise FileNotFoundError("Container file {} does not exist.".format(ContainerPath))
@@ -73,7 +74,7 @@ if not ContainerPath.is_file():
 
 
 # Check if scriptdir is a directory and locate and check the script files.
-ScriptdirPath = Path(scriptdir)
+ScriptdirPath = Path(scriptdir).resolve()
 print("ScriptdirPath: {}\n".format(ScriptdirPath))
 if not ScriptdirPath.exists():
     with suppress(OSError): os.fsync(sys.stdout.fileno())
