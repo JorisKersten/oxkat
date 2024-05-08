@@ -591,7 +591,8 @@ def generate_syscall_wsclean(mslist,
 
     # -----------
     syscall = 'wsclean '
-    syscall += '-log-time '
+    syscall += '-verbose -log-time '
+    # syscall += '-log-time '
     if absmem < 0:
         syscall += '-mem '+str(mem)+' '
     else:
@@ -634,7 +635,8 @@ def generate_syscall_wsclean(mslist,
 
     # Gridding
     if usewgridder:
-        syscall += '-use-wgridder '
+        syscall += '-gridder wgridder -wgridder-accuracy 1e-5 -no-small-inversion -parallel-gridding 8 '
+        # syscall += '-use-wgridder '
 #        syscall += '-wgridder-accuracy '+str(wgridderaccuracy)+' '
     if bda and not useidg:
         syscall += '-baseline-averaging '+str(bdafactor)+' '
@@ -659,7 +661,9 @@ def generate_syscall_wsclean(mslist,
     if multiscale:
         syscall += '-multiscale '
         syscall += '-multiscale-scales '+scales+' '
-    syscall += '-niter '+str(niter)+' '
+    syscall += ('-local-rms -local-rms-method rms-with-min -local-rms-window 50 -auto-threshold 4.5'
+                ' -niter ')+str(niter)+' '
+    # syscall += '-niter '+str(niter)+' '
     syscall += '-gain '+str(gain)+' '
     syscall += '-mgain '+str(mgain)+' '
     if chanout:
