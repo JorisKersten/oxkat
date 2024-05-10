@@ -200,7 +200,7 @@ PRE_TIMEBIN = ''                     # Integration time for working MS, leave em
 
 # Reference antennas
 CAL_1GC_REF_ANT = 'auto'             # Comma-separated list to manually specify refant(s)
-CAL_1GC_REF_POOL = ['m059','m060','m061','m062','m000','m001','m002','m003','m004','m006', 'm007', 'm008'] 
+CAL_1GC_REF_POOL = ['m059','m060','m061','m062','m000','m001','m002','m003','m004','m006', 'm007', 'm008']
                                      # Pool to re-order for reference antenna list for 'auto'
 
 # Field selection, IDs only at present. (Use tools/ms_info.py.)

@@ -693,7 +693,7 @@ def generate_syscall_wsclean(mslist,
 #    if localrms:
         syscall += '-local-rms '
     if threshold:
-        syscall += '-threshold '+str(threshold)+' '
+        syscall += '-abs-threshold '+str(threshold)+' '
 
     for myms in mslist:
         syscall += myms+' '
