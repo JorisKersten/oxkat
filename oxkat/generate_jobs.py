@@ -390,7 +390,7 @@ def step_handler(steps,submit_file,kill_file,infrastructure):
 
 
 def mem_string_to_gb(mem):
-    headroom = 0.98 # fraction of memory specified in IDIA/CHPC config to convert to absmem (hippo a special case)
+    headroom = 0.88 # fraction of memory specified in IDIA/CHPC config to convert to absmem (hippo a special case)
     mem = mem.upper().replace('B','')
     if 'M' in mem:
         factor = 1e-3
