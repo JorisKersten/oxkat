@@ -1,25 +1,25 @@
 #!/bin/bash
 
 
-#file: /scratch3/users/username/sourcename/oxkatname/sourcedir/MANUALCLEAN3GC/slurm_wsclean_automask_ALL.sh:
+#file: /scratch3/users/username/sourcename/oxkatname/sourcedir/MANUALCLEAN2GC/slurm_wsclean_automask_ALL.sh:
 
 
-#SBATCH --job-name=W3E1
+#SBATCH --job-name=W2E1
 #SBATCH --time=48:00:00
 #SBATCH --partition=Main
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=115GB
-#SBATCH --output=/scratch3/users/username/sourcename/oxkatname/sourcedir/MANUALCLEAN3GC/slurm_wsclean_automask_ALL.log
+#SBATCH --output=/scratch3/users/username/sourcename/oxkatname/sourcedir/MANUALCLEAN2GC/slurm_wsclean_automask_ALL.log
 
 
-basedir="/scratch3/users/username/sourcename/oxkatname/sourcedir/MANUALCLEAN3GC"
+basedir="/scratch3/users/username/sourcename/oxkatname/sourcedir/MANUALCLEAN2GC"
 
 containervar="/idia/projects/thunderkat/containers/OC/oxkat-0.5_vol2.sif"
 
 
-namevar="-name ${basedir}/IMAGES/img_msname.ms_post3GCpeel_automask"
+namevar="-name ${basedir}/IMAGES/img_msname.ms_post2GC_automask"
 tempvar="-temp-dir ${basedir}/automask_temp"
 memvar="-abs-mem 105 -mem 95"
 outputvar="-verbose -log-time -save-source-list"
