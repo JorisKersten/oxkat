@@ -148,7 +148,7 @@ def getmaintableinfo(in_msfile):
             # flagged_points += cur_flagrow_flattened.count(True)
             # total_points += len(cur_flagrow_flattened)
 
-            flagged_points += count_nb(np.ravel(cur_flagrow, order='K'), False)
+            flagged_points += count_nb(np.ravel(cur_flagrow, order='K'), True)
         
         counting_endtime = datetime.datetime.now(datetime.timezone.utc)
         current_endtimetoprint = counting_endtime.replace(tzinfo=None).isoformat(sep=' ')
