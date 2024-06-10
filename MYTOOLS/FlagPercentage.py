@@ -48,7 +48,7 @@ logandprint('')
 # Settings.
 # basedir="/scratch3/users/username/object/oxkatversion/sourcedir/"
 basedir="../"
-ProcessMeasurementSets = True
+ProcessMeasurementSets = False
 MeasurementSetNumbers = [1,]   # These MeasurementSets will be processed if ProcessMeasurementSets is True.
 
 
@@ -62,22 +62,22 @@ def count_nb(in_arr, in_value):
             result += 1
     return result
 
-# # A parallel computing enabled numba function to count occurrences of a certain value.
-# # It should be fast for larger numpy arrays.
-# # To count in a multidimensional array one can use np.ravel(arr) as input.
-# @nb.jit(parallel=True)
-# def count_nbp(in_arr, in_value):
-#     result = 0
-#     for i in nb.prange(in_arr.size):
-#         if in_arr[i] == in_value:
-#             result += 1
-#     return result
-# 
-# # A numpy function to count occurrences of a certain value.
-# # It should be reasonably fast for larger numpy arrays.
-# # To count in a multidimensional array one can use np.ravel(arr) as input.
-# def count_np(in_arr, in_value):
-#     return np.count_nonzero(in_arr == in_value)
+# A parallel computing enabled numba function to count occurrences of a certain value.
+# It should be fast for larger numpy arrays.
+# To count in a multidimensional array one can use np.ravel(arr) as input.
+@nb.jit(parallel=True)
+def count_nbp(in_arr, in_value):
+    result = 0
+    for i in nb.prange(in_arr.size):
+        if in_arr[i] == in_value:
+            result += 1
+    return result
+
+# A numpy function to count occurrences of a certain value.
+# It should be reasonably fast for larger numpy arrays.
+# To count in a multidimensional array one can use np.ravel(arr) as input.
+def count_np(in_arr, in_value):
+    return np.count_nonzero(in_arr == in_value)
 
 
 # This function prints the progress of going through a loop.
@@ -106,7 +106,7 @@ def flagandgetflagsummary(in_vis):
     return cur_flaginfo
 
 
-# Print information from the summary of a CASA flagdata run. 
+# Print information from the summary of a CASA flagdata run.
 def printflagsummary(in_flaginfo):
     for cur_field in in_flaginfo.keys():
         cur_flagperc = 100.0 * flaginfo[cur_field]['flagged'] / flaginfo[cur_field]['total']
@@ -126,29 +126,30 @@ def getmaintableinfo(in_msfile):
     logandprint(maincolnames)
     if "FLAG" in maincolnames:
         flagcol = tablecolumn(maintab, 'FLAG')   # flagcol is a 2-dim numpy array of shape (channels, correlations).
-        total_points = np.shape(flagcol[0])[0]*np.shape(flagcol[0])[1]*len(flagcol)   # It is assumed that all rows have the same shape (channels and correlations).
+        flagcol_len = len(flagcol)
+        total_points = np.shape(flagcol[0])[0]*np.shape(flagcol[0])[1]*flagcol_len   # It is assumed that all rows have the same shape (channels and correlations).
         # total_points = 0   # This is used if a count is made.
         flagged_points = 0
         logandprint("\nCounting flagged visibilities.")
         counting_starttime = datetime.datetime.now(datetime.timezone.utc)
         
-        # flagged_points = count_nb(np.ravel(flagcol), False)
+        flagged_points = count_nbp(np.ravel(flagcol, order='K'), True)
         
-        for i, cur_flagrow in enumerate(flagcol):
-            if i%10000 == 0:
-                counting_time = datetime.datetime.now(datetime.timezone.utc)
-                printloopprogress(i, len(flagcol), counting_time, counting_time-counting_starttime)
-
-            # unique, counts = np.unique(cur_flagrow, return_counts=True)
-            # cur_flagrow_countsdict = dict(zip(unique, counts))
-            # if False in cur_flagrow_countsdict.keys():
-            #     flagged_points += cur_flagrow_countsdict[False]
-
-            # cur_flagrow_flattened = list(cur_flagrow.flatten())
-            # flagged_points += cur_flagrow_flattened.count(True)
-            # total_points += len(cur_flagrow_flattened)
-
-            flagged_points += count_nb(np.ravel(cur_flagrow, order='K'), True)
+        # for i, cur_flagrow in enumerate(flagcol):
+        #     if i%10000 == 0:
+        #         counting_time = datetime.datetime.now(datetime.timezone.utc)
+        #         printloopprogress(i, flagcol_len, counting_time, counting_time-counting_starttime)
+        # 
+        #     # unique, counts = np.unique(cur_flagrow, return_counts=True)
+        #     # cur_flagrow_countsdict = dict(zip(unique, counts))
+        #     # if False in cur_flagrow_countsdict.keys():
+        #     #     flagged_points += cur_flagrow_countsdict[False]
+        # 
+        #     # cur_flagrow_flattened = list(cur_flagrow.flatten())
+        #     # flagged_points += cur_flagrow_flattened.count(True)
+        #     # total_points += len(cur_flagrow_flattened)
+        # 
+        #     flagged_points += count_nbp(np.ravel(cur_flagrow, order='K'), True)
         
         counting_endtime = datetime.datetime.now(datetime.timezone.utc)
         current_endtimetoprint = counting_endtime.replace(tzinfo=None).isoformat(sep=' ')
@@ -207,7 +208,7 @@ else:
 #     raise cur_error
 # if not ContainerPath.is_file():
 #     with suppress(OSError): os.fsync(sys.stdout.fileno())
-#     cur_error = FileNotFoundError("Container file {} is exists but is not a file.".format(ContainerPath))
+#     cur_error = FileNotFoundError("Container file {} exists but is not a file.".format(ContainerPath))
 #     logging.error(cur_error)
 #     raise cur_error
 
