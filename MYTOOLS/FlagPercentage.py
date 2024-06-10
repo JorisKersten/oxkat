@@ -1,17 +1,23 @@
 #############################
 #   Joris Kersten           #
 #   j.kersten@astro.ru.nl   #
-#   Tue 2024-05-14          #
+#   Fri 2024-06-07          #
 #############################
 
 
 # This program can be used to determine the percentage of flagged visibilities.
 # The python-casacore package will be used to access MS tables.
 # It is available in /idia/software/containers/kern8.sif for example.
+# Alternatively. the casatools package can be used to access MS tables. It can be pip-installed in a python 3.10 env.
+# It may be available in /idia/software/containers/kern8.sif .
 
 # The CASA listobs task can give similar information.
 # It will give the number of rows per field and the number of unflagged rows per field.
 # The second number can be non-integer.
+
+# The CASA flagdata task can also give similar information. It can be used with the 'calculate' action.
+# The 'summary' mode gives currently active flags. One can also 'calculate' (not apply) new flags with other modes. 
+# Not all produced numbers are reliable. But the final flag percentage seems to be.
 
 # Currently, this is not a finished program.
 # It currently works on the full FLAG column of a MeasurementSet, determining only a single percentage.
@@ -28,8 +34,10 @@ import os
 import datetime
 from contextlib import suppress
 import numpy as np
-import numba as nb
-from casacore.tables import table, tablecolumn
+import pandas as pd
+# from casatools import table as tb   # This is unnecessary. It is not faster than python-casacore.
+from casacore.tables import table as tb, taql
+
 
 from MYHELPERSCRIPTS.loggingfunctions import logging_initialization, logandprint
 
@@ -48,36 +56,9 @@ logandprint('')
 # Settings.
 # basedir="/scratch3/users/username/object/oxkatversion/sourcedir/"
 basedir="../"
+# basedir="/home/joris/Datadir/ObservationData/CasaTutorial3C391/"
 ProcessMeasurementSets = False
 MeasurementSetNumbers = [1,]   # These MeasurementSets will be processed if ProcessMeasurementSets is True.
-
-
-# A numba function to count occurrences of a certain value. It should be fast for larger numpy arrays.
-# To count in a multidimensional array one can use np.ravel(arr) as input.
-@nb.jit
-def count_nb(in_arr, in_value):
-    result = 0
-    for x in in_arr:
-        if x == in_value:
-            result += 1
-    return result
-
-# A parallel computing enabled numba function to count occurrences of a certain value.
-# It should be fast for larger numpy arrays.
-# To count in a multidimensional array one can use np.ravel(arr) as input.
-@nb.jit(parallel=True)
-def count_nbp(in_arr, in_value):
-    result = 0
-    for i in nb.prange(in_arr.size):
-        if in_arr[i] == in_value:
-            result += 1
-    return result
-
-# A numpy function to count occurrences of a certain value.
-# It should be reasonably fast for larger numpy arrays.
-# To count in a multidimensional array one can use np.ravel(arr) as input.
-def count_np(in_arr, in_value):
-    return np.count_nonzero(in_arr == in_value)
 
 
 # This function prints the progress of going through a loop.
@@ -113,50 +94,144 @@ def printflagsummary(in_flaginfo):
         logandprint("Field: {}".format(cur_field))
         logandprint("Flagged: {:3.2f}\n".format(cur_flagperc))
 
+def count_flags_inner(in_maintab):
+    inner_calcexpr = 'sum([select from {} giving [nTrue(FLAG)]])'.format(in_maintab.name())
+    inner_result = in_maintab.calc(expr=inner_calcexpr)
+    return inner_result[0]
+
+def count_flags_per_antenna(in_maintab):
+    # inner_query = """
+    # with [select ANTENNA1,ANTENNA2,gntrue(FLAG) as NFLAG,gnfalse(FLAG) as NCLEAR
+    #       from {}
+    #       where ANTENNA1!=ANTENNA2
+    #       groupby ANTENNA1,ANTENNA2] as t1
+    # select ANTENNA,gsum(NFLAG),gsum(NCLEAR),100.*(gsum(NFLAG)/(gsum(NFLAG)+gsum(NCLEAR)))
+    # from [[select NFLAG,NCLEAR,ANTENNA1 as ANTENNA from t1],  
+    #       [select NFLAG,NCLEAR,ANTENNA2 as ANTENNA from t1]]
+    # groupby ANTENNA orderby ANTENNA
+    # """.format(in_maintab.name())
+    
+    inner_query = """
+    with [select ANTENNA1, ANTENNA2, gntrue(FLAG) as NFLAG, gnfalse(FLAG) as NCLEAR
+          from {}
+          where ANTENNA1!=ANTENNA2
+          groupby ANTENNA1,ANTENNA2] as t1
+    select ANTENNA, gsum(NFLAG) as flagged, gsum(NCLEAR) as clear
+    from [[select NFLAG,NCLEAR,ANTENNA1 as ANTENNA from t1],  
+          [select NFLAG,NCLEAR,ANTENNA2 as ANTENNA from t1]]
+    groupby ANTENNA orderby ANTENNA
+    """.format(in_maintab.name())
+    
+    # inner_query = """
+    #               select ANTENNA1,ANTENNA2,gntrue(FLAG) as NFLAG  
+    #               from {}
+    #               where ANTENNA1!=ANTENNA2
+    #               groupby ANTENNA1,ANTENNA2
+    #               """.format(in_maintab.name())
+
+    print("inner_query: {}".format(inner_query))
+    inner_result = taql(inner_query)
+    inner_result = taql(inner_query)
+    # inner_result.renamecol('Col_2', 'flagged')
+    # inner_result.renamecol('Col_3', 'clear')
+    # inner_result.renamecol('Col_4', 'percentage')
+
+    print("Result:")
+    # print(type(inner_result))
+    # print(inner_result)
+    # print('\n')
+    # for i in range(len(inner_result)):
+    #     print(inner_result[i])
+    # print('\n')
+    mytable = []
+    for i in range(inner_result.nrows()):
+        mytable.append(inner_result[:][i])
+    df = pd.DataFrame(mytable)
+    df['total'] = df['flagged'] + df['clear']
+    df['percentage'] = 100. * (df['flagged'] / df['total'])
+    with pd.option_context('display.max_rows', None,
+                           'display.max_columns', None,
+                           'display.precision', 2,
+                           ):
+        print(df)
+    print('\n')
+    return df
+
+def count_flags_per_scan(in_maintab):
+    # inner_query = """
+    # select SCAN_NUMBER,gntrue(FLAG),gnfalse(FLAG),100.*gntrue(FLAG)/(gntrue(FLAG)+gnfalse(FLAG))  
+    # from {}
+    # groupby SCAN_NUMBER orderby SCAN_NUMBER
+    # """.format(in_maintab.name())
+    
+    inner_query = """
+    select SCAN_NUMBER, gntrue(FLAG) as flagged, gnfalse(FLAG) as clear  
+    from {}
+    groupby SCAN_NUMBER orderby SCAN_NUMBER
+    """.format(in_maintab.name())
+    
+    print("inner_query: {}".format(inner_query))
+    inner_result = taql(inner_query)
+    # inner_result.renamecol('Col_2', 'flagged')
+    # inner_result.renamecol('Col_3', 'clear')
+    # inner_result.renamecol('Col_4', 'percentage')
+    
+    print("Result:")
+    # print(type(inner_result))
+    # print(inner_result)
+    # print('\n')
+    # for i in range(len(inner_result)):
+    #     print(inner_result[i])
+    # print('\n')
+    mytable = []
+    for i in range(inner_result.nrows()):
+        mytable.append(inner_result[:][i])
+    df = pd.DataFrame(mytable)
+    df['total'] = df['flagged'] + df['clear']
+    df['percentage'] = 100. * (df['flagged'] / df['total'])
+    with pd.option_context('display.max_rows', None,
+                           'display.max_columns', None,
+                           'display.precision', 2,
+                           ):
+        print(df)
+    print('\n')
+    return df
+
+def count_flags_total(in_maintab):
+    counting_starttime = datetime.datetime.now(datetime.timezone.utc)
+    inner_flagged_points = count_flags_inner(in_maintab)
+    counting_endtime = datetime.datetime.now(datetime.timezone.utc)
+    current_endtimetoprint = counting_endtime.replace(tzinfo=None).isoformat(sep=' ')
+    logandprint("Counting finished. Time: {} (UTC)    Time spent counting: {}\n"
+                .format(current_endtimetoprint, counting_endtime - counting_starttime))
+    return inner_flagged_points
+
 
 # This function is meant to quickly get information on a MeasurementSet MAIN TABLE.
 # However, it now also scans the bools on the FLAG column.
 def getmaintableinfo(in_msfile):
     # Opening the main table of the specified MeasurementSet
-    maintab = table(in_msfile)
+    maintab = tb(in_msfile)
     mainrows = maintab.nrows()
     logandprint("Number of rows (unique timestamp and baseline): {}".format(mainrows))
     maincolnames = sorted(maintab.colnames())
     logandprint("Columns present in the main table:")
     logandprint(maincolnames)
+    logandprint('')
     if "FLAG" in maincolnames:
-        flagcol = tablecolumn(maintab, 'FLAG')   # flagcol is a 2-dim numpy array of shape (channels, correlations).
+        count_flags_per_antenna(maintab)
+        perscanresult = count_flags_per_scan(maintab)
+        perscantotalflagged = perscanresult['flagged'].sum()
+        perscantotalclear = perscanresult['clear'].sum()
+        print(perscantotalflagged, perscantotalflagged+perscantotalclear,
+              100.*perscantotalflagged/(perscantotalflagged+perscantotalclear))
+        flagcol = maintab.getcol('FLAG')   # flagcol is a 2-dim numpy array of shape (channels, correlations).
         flagcol_len = len(flagcol)
         total_points = np.shape(flagcol[0])[0]*np.shape(flagcol[0])[1]*flagcol_len   # It is assumed that all rows have the same shape (channels and correlations).
-        # total_points = 0   # This is used if a count is made.
-        flagged_points = 0
         logandprint("\nCounting flagged visibilities.")
-        counting_starttime = datetime.datetime.now(datetime.timezone.utc)
-        
-        flagged_points = count_nbp(np.ravel(flagcol, order='K'), True)
-        
-        # for i, cur_flagrow in enumerate(flagcol):
-        #     if i%10000 == 0:
-        #         counting_time = datetime.datetime.now(datetime.timezone.utc)
-        #         printloopprogress(i, flagcol_len, counting_time, counting_time-counting_starttime)
-        # 
-        #     # unique, counts = np.unique(cur_flagrow, return_counts=True)
-        #     # cur_flagrow_countsdict = dict(zip(unique, counts))
-        #     # if False in cur_flagrow_countsdict.keys():
-        #     #     flagged_points += cur_flagrow_countsdict[False]
-        # 
-        #     # cur_flagrow_flattened = list(cur_flagrow.flatten())
-        #     # flagged_points += cur_flagrow_flattened.count(True)
-        #     # total_points += len(cur_flagrow_flattened)
-        # 
-        #     flagged_points += count_nbp(np.ravel(cur_flagrow, order='K'), True)
-        
-        counting_endtime = datetime.datetime.now(datetime.timezone.utc)
-        current_endtimetoprint = counting_endtime.replace(tzinfo=None).isoformat(sep=' ')
-        logandprint("Counting finished. Time: {} (UTC)    Time in loop: {}\n"
-              .format(current_endtimetoprint, counting_endtime-counting_starttime))
+        flagged_points = count_flags_total(maintab)
         inner_result_string = ("Result: {:6.2f}% of visibilities flagged. ( flagged points / total points: {} / {} )\n"
-                               .format(100.*flagged_points/total_points, flagged_points, total_points))
+                               .format(100. * flagged_points / total_points, flagged_points, total_points))
         logandprint(inner_result_string)
     maintab.close()
     logandprint("Table 'maintab' closed.\n")
