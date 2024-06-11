@@ -19,11 +19,11 @@
 # The 'summary' mode gives currently active flags. One can also 'calculate' (not apply) new flags with other modes. 
 # Not all produced numbers are reliable. But the final flag percentage seems to be.
 
-# Currently, this is not a finished program.
-# It currently works on the full FLAG column of a MeasurementSet, determining a single percentage.
-# The program not only counts the total flag percentage, but also per antenna (not considering autocorrelations)
-# and per scan.
-# Finding the flag percentage for a finer selection is a feature which should be added in the future.
+# The program can currently work on the full FLAG column of a MeasurementSet, determining a single percentage.
+# This is the percentage of visibilities flagged, including auto-correlations.
+# The program can not only count the total flag percentage, but also per antenna (not considering autocorrelations)
+# and per scan (not considering auto-correlations).
+# Finding the flag percentage for a finer selection is a feature which could be added in the future.
 
 # Also, in the future the program should be able to work with FLAGVERSION tables.
 # These usually only have the FLAG and FLAG_ROW column, so they either need a corresponding MS main table or
@@ -153,20 +153,10 @@ def count_flags_per_scan(in_maintab, in_printmessages=False):
 
 
 # A count is done with the calc method. It internally translates to TaQL.
-def count_flags_inner(in_maintab):
+def count_flags_total(in_maintab):
     inner_calcexpr = 'sum([select from {} giving [nTrue(FLAG)]])'.format(in_maintab.name())
     inner_result = in_maintab.calc(expr=inner_calcexpr)
     return inner_result[0]
-
-
-def count_flags_total(in_maintab):
-    counting_starttime = datetime.datetime.now(datetime.timezone.utc)
-    inner_flagged_points = count_flags_inner(in_maintab)
-    counting_endtime = datetime.datetime.now(datetime.timezone.utc)
-    current_endtimetoprint = counting_endtime.replace(tzinfo=None).isoformat(sep=' ')
-    logandprint("Counting finished. Time: {} (UTC)    Time spent counting: {}\n"
-                .format(current_endtimetoprint, counting_endtime - counting_starttime))
-    return inner_flagged_points
 
 
 # This function is meant to quickly get information on a MeasurementSet MAIN TABLE.
@@ -182,15 +172,28 @@ def getmaintableinfo(in_msfile):
     logandprint('\n----\n')
     if "FLAG" in maincolnames:
         logandprint("Flagged visibilities per antenna. Self-correlations are not considered.")
+        countingperantenna_starttime = datetime.datetime.now(datetime.timezone.utc)
         perantennaresult = count_flags_per_antenna(maintab)
+        countingperantenna_endtime = datetime.datetime.now(datetime.timezone.utc)
+        countingperantenna_endtimetoprint = countingperantenna_endtime.replace(tzinfo=None).isoformat(sep=' ')
+        logandprint("Counting finished. Time: {} (UTC)    Time spent counting: {}\n"
+                    .format(countingperantenna_endtimetoprint,
+                            countingperantenna_endtime - countingperantenna_starttime))
         with pd.option_context('display.max_rows', None,
                                'display.max_columns', None,
                                'display.precision', 2,
                                ):
             logandprint(perantennaresult)
         logandprint('\n----\n')
+        
         logandprint("Flagged visibilities per scan. Self-correlations are not considered.")
+        countingperscan_starttime = datetime.datetime.now(datetime.timezone.utc)
         perscanresult = count_flags_per_scan(maintab)
+        countingperscan_endtime = datetime.datetime.now(datetime.timezone.utc)
+        countingperscan_endtimetoprint = countingperscan_endtime.replace(tzinfo=None).isoformat(sep=' ')
+        logandprint("Counting finished. Time: {} (UTC)    Time spent counting: {}\n"
+                    .format(countingperscan_endtimetoprint,
+                            countingperscan_endtime - countingperscan_starttime))
         with pd.option_context('display.max_rows', None,
                                'display.max_columns', None,
                                'display.precision', 2,
@@ -204,14 +207,22 @@ def getmaintableinfo(in_msfile):
                     .format(perscantotalflagged, perscantotalflagged+perscantotalclear,
                             100.*perscantotalflagged/(perscantotalflagged+perscantotalclear)))
         logandprint('----\n')
+        
         flagcol = maintab.getcol('FLAG')   # flagcol is a 2-dim numpy array of shape (channels, correlations).
         flagcol_len = len(flagcol)
         total_points = np.shape(flagcol[0])[0]*np.shape(flagcol[0])[1]*flagcol_len   # It is assumed that all rows have the same shape (channels and correlations).
         logandprint("Counting flagged visibilities, including self-correlations.")
+        counting_starttime = datetime.datetime.now(datetime.timezone.utc)
         flagged_points = count_flags_total(maintab)
+        counting_endtime = datetime.datetime.now(datetime.timezone.utc)
+        current_endtimetoprint = counting_endtime.replace(tzinfo=None).isoformat(sep=' ')
+        logandprint("Counting finished. Time: {} (UTC)    Time spent counting: {}\n"
+                    .format(current_endtimetoprint, counting_endtime - counting_starttime))
         inner_result_string = ("Result: {:6.2f}% of visibilities flagged. ( flagged points / total points: {} / {} )\n"
                                .format(100. * flagged_points / total_points, flagged_points, total_points))
         logandprint(inner_result_string)
+        logandprint('----\n')
+    
     maintab.close()
     logandprint("Table 'maintab' closed.\n")
     return inner_result_string
@@ -265,7 +276,7 @@ if len(SelectedMeasurementSets) <=0:
     logging.error(cur_error)
     raise cur_error
 else:
-    logandprint("Selected Measurementsets:")
+    logandprint("Selected MeasurementSets:")
     for i,m in enumerate(SelectedMeasurementSets):
         logandprint("({:2}): {}".format(i+1,m))
     logandprint("\n----\n")
@@ -275,7 +286,7 @@ else:
 for m in SelectedMeasurementSets:
     logandprint("Processing {}\n".format(m))
     result_string = getmaintableinfo(str(m))
-    logandprint("----\n")
+    logandprint("--------\n")
 
 
 # Print the time at the end of the program (since this is the last part of it) and the program duration.
