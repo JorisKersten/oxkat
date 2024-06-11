@@ -43,7 +43,6 @@ import pandas as pd
 # from casatools import table as tb   # This is unnecessary. It is not faster than python-casacore.
 from casacore.tables import table as tb, taql
 
-
 from MYHELPERSCRIPTS.loggingfunctions import logging_initialization, logandprint
 
 
@@ -62,61 +61,13 @@ logandprint('')
 # basedir="/scratch3/users/username/object/oxkatversion/sourcedir/"
 basedir="../"
 # basedir="/home/joris/Datadir/ObservationData/CasaTutorial3C391/"
-basedir="/home/joris/Datadir/PhDProject/MyObjects/V603Aql/V603Aql20230602/"
+# basedir="/home/joris/Datadir/PhDProject/MyObjects/V603Aql/V603Aql20230602/"
 ProcessMeasurementSets = False
 MeasurementSetNumbers = [1,]   # These MeasurementSets will be processed if ProcessMeasurementSets is True.
 
 
-# This function prints the progress of going through a loop.
-# It requires the current iteration, the total number of iterations,
-# the current time (as datetime with UTC timezone) and the time since the start of the loop (as timedelta).
-def printloopprogress(in_i, in_len, in_curtime, in_timedelta):
-    cur_timetoprint = in_curtime.replace(tzinfo=None).isoformat(sep=' ')
-    cur_timeremaining = in_timedelta * (in_len/(in_i+1) - 1.)
-    cur_estimatedendtime = in_curtime + cur_timeremaining
-    cur_estimatedendtimetoprint = cur_estimatedendtime.replace(tzinfo=None).isoformat(sep=' ', timespec='seconds')
-    cur_string = ("[{:6.2f}%  ( {:9} / {:9} )]  "
-                  "Time: {} UTC  Time in loop: {}  "
-                  "Estimated end time: {} UTC  Estimated loop time remaining: {}"
-                  .format(100.*(in_i+1)/in_len, in_i+1, in_len,
-                          cur_timetoprint, in_timedelta,
-                          cur_estimatedendtimetoprint, str(cur_timeremaining).split('.')[0]))
-    logandprint(cur_string)
-
-
-# Function to get a flagging summary.
-# One can run the flagging task 'flagdata´. It will give a summary of what it has done (either applied or as dry run).
-# It returns a dict, containing as keys the field names and 'name' and 'type'. It should probably have a key 'field',
-# with the field names as subkeys.
-def flagandgetflagsummary(in_vis):
-    cur_flaginfo = flagdata(vis=in_vis, mode='summary', action='calculate', spwchan=False, fieldcnt=True)
-    return cur_flaginfo
-
-
-# Print information from the summary of a CASA flagdata run.
-def printflagsummary(in_flaginfo):
-    for cur_field in in_flaginfo.keys():
-        cur_flagperc = 100.0 * flaginfo[cur_field]['flagged'] / flaginfo[cur_field]['total']
-        logandprint("Field: {}".format(cur_field))
-        logandprint("Flagged: {:3.2f}\n".format(cur_flagperc))
-
-def count_flags_inner(in_maintab):
-    inner_calcexpr = 'sum([select from {} giving [nTrue(FLAG)]])'.format(in_maintab.name())
-    inner_result = in_maintab.calc(expr=inner_calcexpr)
-    return inner_result[0]
-
-def count_flags_per_antenna(in_maintab):
-    # inner_query = """
-    # with [select ANTENNA1,ANTENNA2,gntrue(FLAG) as NFLAG,gnfalse(FLAG) as NCLEAR
-    #       from {}
-    #       where ANTENNA1!=ANTENNA2
-    #       groupby ANTENNA1,ANTENNA2] as t1
-    # select ANTENNA,gsum(NFLAG),gsum(NCLEAR),100.*(gsum(NFLAG)/(gsum(NFLAG)+gsum(NCLEAR)))
-    # from [[select NFLAG,NCLEAR,ANTENNA1 as ANTENNA from t1],  
-    #       [select NFLAG,NCLEAR,ANTENNA2 as ANTENNA from t1]]
-    # groupby ANTENNA orderby ANTENNA
-    # """.format(in_maintab.name())
-    
+# Write the TaQL query, run it, get the result into a dataframe (df). Then return the df.
+def count_flags_per_antenna(in_maintab, in_printmessages=False):
     inner_query = """
     with [select ANTENNA1, ANTENNA2, gntrue(FLAG) as NFLAG, gnfalse(FLAG) as NCLEAR
           from {}
@@ -127,55 +78,41 @@ def count_flags_per_antenna(in_maintab):
           [select NFLAG,NCLEAR,ANTENNA2 as ANTENNA from t1]]
     groupby ANTENNA orderby ANTENNA
     """.format(in_maintab.name())
+
+    if in_printmessages:
+        print("inner_query: {}".format(inner_query))
     
-    # inner_query = """
-    #               select ANTENNA1,ANTENNA2,gntrue(FLAG) as NFLAG  
-    #               from {}
-    #               where ANTENNA1!=ANTENNA2
-    #               groupby ANTENNA1,ANTENNA2
-    #               """.format(in_maintab.name())
-
-    print("inner_query: {}".format(inner_query))
     inner_result = taql(inner_query)
-    inner_result = taql(inner_query)
-    # inner_result.renamecol('Col_2', 'flagged')
-    # inner_result.renamecol('Col_3', 'clear')
-    # inner_result.renamecol('Col_4', 'percentage')
-
-    print("Result:")
-    # print(type(inner_result))
-    # print(inner_result)
-    # print('\n')
-    # for i in range(len(inner_result)):
-    #     print(inner_result[i])
-    # print('\n')
+    
+    if in_printmessages:
+        print("Result:")
+        print("Type: {}".format(type(inner_result)))
+        print(inner_result)
+        print('\n')
+        for i in range(len(inner_result)):
+            print(inner_result[i])
+        print('\n')
+    
     mytable = []
     for i in range(inner_result.nrows()):
         mytable.append(inner_result[:][i])
     df = pd.DataFrame(mytable)
     df['total'] = df['flagged'] + df['clear']
     df['percentage'] = 100. * (df['flagged'] / df['total'])
-    with pd.option_context('display.max_rows', None,
-                           'display.max_columns', None,
-                           'display.precision', 2,
-                           ):
-        print(df)
-    print('\n')
+    
+    if in_printmessages:
+        with pd.option_context('display.max_rows', None,
+                               'display.max_columns', None,
+                               'display.precision', 2,
+                               ):
+            print(df)
+        print('\n')
+    
     return df
 
-def count_flags_per_scan(in_maintab):
-    # inner_query = """
-    # select SCAN_NUMBER,gntrue(FLAG),gnfalse(FLAG),100.*gntrue(FLAG)/(gntrue(FLAG)+gnfalse(FLAG))  
-    # from {}
-    # groupby SCAN_NUMBER orderby SCAN_NUMBER
-    # """.format(in_maintab.name())
-    
-    # inner_query = """
-    # select SCAN_NUMBER, gntrue(FLAG) as flagged, gnfalse(FLAG) as clear  
-    # from {}
-    # groupby SCAN_NUMBER orderby SCAN_NUMBER
-    # """.format(in_maintab.name())
 
+# Write the TaQL query, run it, get the result into a dataframe (df). Then return the df.
+def count_flags_per_scan(in_maintab, in_printmessages=False):
     inner_query = """
     select SCAN_NUMBER, gntrue(FLAG) as flagged, gnfalse(FLAG) as clear
     from {}
@@ -183,32 +120,44 @@ def count_flags_per_scan(in_maintab):
     groupby SCAN_NUMBER orderby SCAN_NUMBER
     """.format(in_maintab.name())
     
-    print("inner_query: {}".format(inner_query))
-    inner_result = taql(inner_query)
-    # inner_result.renamecol('Col_2', 'flagged')
-    # inner_result.renamecol('Col_3', 'clear')
-    # inner_result.renamecol('Col_4', 'percentage')
+    if in_printmessages:
+        print("inner_query: {}".format(inner_query))
     
-    print("Result:")
-    # print(type(inner_result))
-    # print(inner_result)
-    # print('\n')
-    # for i in range(len(inner_result)):
-    #     print(inner_result[i])
-    # print('\n')
+    inner_result = taql(inner_query)
+    
+    if in_printmessages:
+        print("Result:")
+        print("Type: {}".format(type(inner_result)))
+        print(inner_result)
+        print('\n')
+        for i in range(len(inner_result)):
+            print(inner_result[i])
+        print('\n')
+    
     mytable = []
     for i in range(inner_result.nrows()):
         mytable.append(inner_result[:][i])
     df = pd.DataFrame(mytable)
     df['total'] = df['flagged'] + df['clear']
     df['percentage'] = 100. * (df['flagged'] / df['total'])
-    with pd.option_context('display.max_rows', None,
-                           'display.max_columns', None,
-                           'display.precision', 2,
-                           ):
-        print(df)
-    print('\n')
+    
+    if in_printmessages:
+        with pd.option_context('display.max_rows', None,
+                               'display.max_columns', None,
+                               'display.precision', 2,
+                               ):
+            print(df)
+        print('\n')
+
     return df
+
+
+# A count is done with the calc method. It internally translates to TaQL.
+def count_flags_inner(in_maintab):
+    inner_calcexpr = 'sum([select from {} giving [nTrue(FLAG)]])'.format(in_maintab.name())
+    inner_result = in_maintab.calc(expr=inner_calcexpr)
+    return inner_result[0]
+
 
 def count_flags_total(in_maintab):
     counting_starttime = datetime.datetime.now(datetime.timezone.utc)
@@ -230,19 +179,31 @@ def getmaintableinfo(in_msfile):
     maincolnames = sorted(maintab.colnames())
     logandprint("Columns present in the main table:")
     logandprint(maincolnames)
-    logandprint('\n')
+    logandprint('\n----\n')
     if "FLAG" in maincolnames:
-        print("Flagged visibilities per antenna. Self-correlations are not considered.")
+        logandprint("Flagged visibilities per antenna. Self-correlations are not considered.")
         perantennaresult = count_flags_per_antenna(maintab)
-        print('----\n')
-        print("Flagged visibilities per scan. Self-correlations are not considered.")
+        with pd.option_context('display.max_rows', None,
+                               'display.max_columns', None,
+                               'display.precision', 2,
+                               ):
+            logandprint(perantennaresult)
+        logandprint('\n----\n')
+        logandprint("Flagged visibilities per scan. Self-correlations are not considered.")
         perscanresult = count_flags_per_scan(maintab)
+        with pd.option_context('display.max_rows', None,
+                               'display.max_columns', None,
+                               'display.precision', 2,
+                               ):
+            logandprint(perscanresult)
+        logandprint('\n')
         perscantotalflagged = perscanresult['flagged'].sum()
         perscantotalclear = perscanresult['clear'].sum()
-        print("Total flags, summed from the per scan result. Self-correlations are excluded.")
-        print("Flagged: {}   Total: {}    Percentage: {:.4}%\n".format(perscantotalflagged, perscantotalflagged+perscantotalclear,
-              100.*perscantotalflagged/(perscantotalflagged+perscantotalclear)))
-        print('----\n')
+        logandprint("Total flags, summed from the per scan result. Self-correlations are excluded.")
+        logandprint("Flagged: {}   Total: {}    Percentage: {:.4}%\n"
+                    .format(perscantotalflagged, perscantotalflagged+perscantotalclear,
+                            100.*perscantotalflagged/(perscantotalflagged+perscantotalclear)))
+        logandprint('----\n')
         flagcol = maintab.getcol('FLAG')   # flagcol is a 2-dim numpy array of shape (channels, correlations).
         flagcol_len = len(flagcol)
         total_points = np.shape(flagcol[0])[0]*np.shape(flagcol[0])[1]*flagcol_len   # It is assumed that all rows have the same shape (channels and correlations).
@@ -293,23 +254,10 @@ else:
     logandprint("Processing MeasurementSets.\n")
 
 
-# ContainerPath = Path(container).resolve()
-# if not ContainerPath.exists():
-#     with suppress(OSError): os.fsync(sys.stdout.fileno())
-#     cur_error = FileNotFoundError("Container file {} does not exist.".format(ContainerPath))
-#     logging.error(cur_error)
-#     raise cur_error
-# if not ContainerPath.is_file():
-#     with suppress(OSError): os.fsync(sys.stdout.fileno())
-#     cur_error = FileNotFoundError("Container file {} exists but is not a file.".format(ContainerPath))
-#     logging.error(cur_error)
-#     raise cur_error
-
-
 # Select the MeasurementSets which should be processed.
 SelectedMeasurementSets = []
 for i in MeasurementSetNumbers:
-    if i>0 and i<=len(MeasurementSets):
+    if (i > 0) and (i <= len(MeasurementSets)):
         SelectedMeasurementSets.append(MeasurementSets[i-1])
 if len(SelectedMeasurementSets) <=0:
     with suppress(OSError): os.fsync(sys.stdout.fileno())
@@ -326,39 +274,6 @@ else:
 # Process the MeasurementSets.
 for m in SelectedMeasurementSets:
     logandprint("Processing {}\n".format(m))
-    
-    # cur_fs = flagandgetflagsummary(str(m))
-    # logandprint(cur_fs.keys())
-    # printflagsummary(cur_fs)
-    
-    # listobs(vis=str(m),
-    #         selectdata=True,
-    #         spw='',
-    #         field='',
-    #         antenna='',
-    #         uvrange='',
-    #         timerange='',
-    #         correlation='',
-    #         scan='',
-    #         intent='',
-    #         feed='',
-    #         array='',
-    #         observation='',
-    #         verbose=True,
-    #         listfile=str(m.name)+'.log',
-    #         listunfl=True,
-    #         # cachesize=50,
-    #         overwrite=True)
-    
-    # listobs(vis=str(m),
-    #         selectdata=False,
-    #         verbose=True,
-    #         listfile=str(m.name)+'.log',
-    #         listunfl=True,
-    #         # cachesize=50,
-    #         overwrite=True)
-    # logandprint("----\n")
-    
     result_string = getmaintableinfo(str(m))
     logandprint("----\n")
 

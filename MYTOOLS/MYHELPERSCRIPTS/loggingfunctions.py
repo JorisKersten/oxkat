@@ -25,8 +25,9 @@ def logging_initialization(in_program_name):
 # in case of 'INFO'.
 # Let's take 255 characters total allowed. This means that 216 characters are left for the string if INFO is used.
 def logandprint(in_data, in_level='INFO'):
-    innner_str = str(in_data)
-    inner_strs = innner_str.splitlines()
+    inner_str = str(in_data)
+    # inner_strs = inner_str.splitlines()
+    inner_strs = inner_str.split('\n')
     if len(inner_strs) < 1:
         inner_strs = ["",]
     for cur_str in inner_strs:
