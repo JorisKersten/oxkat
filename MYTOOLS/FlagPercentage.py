@@ -20,9 +20,10 @@
 # Not all produced numbers are reliable. But the final flag percentage seems to be.
 
 # Currently, this is not a finished program.
-# It currently works on the full FLAG column of a MeasurementSet, determining only a single percentage.
-# Finding the flag percentage for a selection, or for iterative selections (each scan for example) are features which
-# should be added in the future.
+# It currently works on the full FLAG column of a MeasurementSet, determining a single percentage.
+# The program not only counts the total flag percentage, but also per antenna (not considering autocorrelations)
+# and per scan.
+# Finding the flag percentage for a finer selection is a feature which should be added in the future.
 # Also, in the future the program should be able to work with FLAGVERSION tables.
 
 
@@ -57,6 +58,7 @@ logandprint('')
 # basedir="/scratch3/users/username/object/oxkatversion/sourcedir/"
 basedir="../"
 # basedir="/home/joris/Datadir/ObservationData/CasaTutorial3C391/"
+basedir="/home/joris/Datadir/PhDProject/MyObjects/V603Aql/V603Aql20230602/"
 ProcessMeasurementSets = False
 MeasurementSetNumbers = [1,]   # These MeasurementSets will be processed if ProcessMeasurementSets is True.
 
@@ -164,9 +166,16 @@ def count_flags_per_scan(in_maintab):
     # groupby SCAN_NUMBER orderby SCAN_NUMBER
     # """.format(in_maintab.name())
     
+    # inner_query = """
+    # select SCAN_NUMBER, gntrue(FLAG) as flagged, gnfalse(FLAG) as clear  
+    # from {}
+    # groupby SCAN_NUMBER orderby SCAN_NUMBER
+    # """.format(in_maintab.name())
+
     inner_query = """
-    select SCAN_NUMBER, gntrue(FLAG) as flagged, gnfalse(FLAG) as clear  
+    select SCAN_NUMBER, gntrue(FLAG) as flagged, gnfalse(FLAG) as clear
     from {}
+    where ANTENNA1!=ANTENNA2
     groupby SCAN_NUMBER orderby SCAN_NUMBER
     """.format(in_maintab.name())
     
@@ -217,18 +226,23 @@ def getmaintableinfo(in_msfile):
     maincolnames = sorted(maintab.colnames())
     logandprint("Columns present in the main table:")
     logandprint(maincolnames)
-    logandprint('')
+    logandprint('\n')
     if "FLAG" in maincolnames:
-        count_flags_per_antenna(maintab)
+        print("Flagged visibilities per antenna. Self-correlations are not considered.")
+        perantennaresult = count_flags_per_antenna(maintab)
+        print('----\n')
+        print("Flagged visibilities per scan. Self-correlations are not considered.")
         perscanresult = count_flags_per_scan(maintab)
         perscantotalflagged = perscanresult['flagged'].sum()
         perscantotalclear = perscanresult['clear'].sum()
-        print(perscantotalflagged, perscantotalflagged+perscantotalclear,
-              100.*perscantotalflagged/(perscantotalflagged+perscantotalclear))
+        print("Total flags, summed from the per scan result. Self-correlations are excluded.")
+        print("Flagged: {}   Total: {}    Percentage: {:.4}%\n".format(perscantotalflagged, perscantotalflagged+perscantotalclear,
+              100.*perscantotalflagged/(perscantotalflagged+perscantotalclear)))
+        print('----\n')
         flagcol = maintab.getcol('FLAG')   # flagcol is a 2-dim numpy array of shape (channels, correlations).
         flagcol_len = len(flagcol)
         total_points = np.shape(flagcol[0])[0]*np.shape(flagcol[0])[1]*flagcol_len   # It is assumed that all rows have the same shape (channels and correlations).
-        logandprint("\nCounting flagged visibilities.")
+        logandprint("Counting flagged visibilities, including self-correlations.")
         flagged_points = count_flags_total(maintab)
         inner_result_string = ("Result: {:6.2f}% of visibilities flagged. ( flagged points / total points: {} / {} )\n"
                                .format(100. * flagged_points / total_points, flagged_points, total_points))
