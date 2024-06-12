@@ -16,7 +16,7 @@
 # The second number can be non-integer.
 
 # The CASA flagdata task can also give similar information. It can be used with the 'calculate' action.
-# The 'summary' mode gives currently active flags. One can also 'calculate' (not apply) new flags with other modes. 
+# The 'summary' mode gives currently active flags. One can also 'calculate' (not apply) new flags with other modes.
 # Not all produced numbers are reliable. But the final flag percentage seems to be.
 
 # The program can currently work on the full FLAG column of a MeasurementSet, determining a single percentage.
@@ -59,10 +59,10 @@ logandprint('')
 
 # Settings.
 # basedir="/scratch3/users/username/object/oxkatversion/sourcedir/"
-basedir="../"
+# basedir="../"
 # basedir="/home/joris/Datadir/ObservationData/CasaTutorial3C391/"
-# basedir="/home/joris/Datadir/PhDProject/MyObjects/V603Aql/V603Aql20230602/"
-ProcessMeasurementSets = False
+basedir="/home/joris/Datadir/PhDProject/MyObjects/V603Aql/V603Aql20230602/"
+ProcessMeasurementSets = True
 MeasurementSetNumbers = [1,]   # These MeasurementSets will be processed if ProcessMeasurementSets is True.
 
 
@@ -73,11 +73,11 @@ def count_flags_per_antenna(in_maintab, in_printmessages=False):
           from {}
           where ANTENNA1!=ANTENNA2
           groupby ANTENNA1,ANTENNA2] as t1
-    select ANTENNA, gsum(NFLAG) as flagged, gsum(NCLEAR) as clear
-    from [[select NFLAG,NCLEAR,ANTENNA1 as ANTENNA from t1],  
+    select ANTENNA, (select NAME from {}::ANTENNA)[ANTENNA] as NAME, gsum(NFLAG) as flagged, gsum(NCLEAR) as clear
+    from [[select NFLAG,NCLEAR,ANTENNA1 as ANTENNA from t1],
           [select NFLAG,NCLEAR,ANTENNA2 as ANTENNA from t1]]
     groupby ANTENNA orderby ANTENNA
-    """.format(in_maintab.name())
+    """.format(in_maintab.name(), in_maintab.name())
 
     if in_printmessages:
         print("inner_query: {}".format(inner_query))
