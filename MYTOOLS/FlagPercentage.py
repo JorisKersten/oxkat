@@ -21,7 +21,7 @@
 
 # The program can currently work on the full FLAG column of a MeasurementSet, determining a single percentage.
 # This is the percentage of visibilities flagged, including auto-correlations.
-# The program can not only count the total flag percentage, but also per antenna (not considering autocorrelations)
+# The program can not only count the total flag percentage, but also per antenna (not considering auto-correlations)
 # and per scan (not considering auto-correlations).
 # Finding the flag percentage for a finer selection is a feature which could be added in the future.
 
@@ -59,11 +59,13 @@ logandprint('')
 
 # Settings.
 # basedir="/scratch3/users/username/object/oxkatversion/sourcedir/"
-# basedir="../"
+basedir="../"
 # basedir="/home/joris/Datadir/ObservationData/CasaTutorial3C391/"
-basedir="/home/joris/Datadir/PhDProject/MyObjects/V603Aql/V603Aql20230602/"
-ProcessMeasurementSets = True
-MeasurementSetNumbers = [1,]   # These MeasurementSets will be processed if ProcessMeasurementSets is True.
+# basedir="/home/joris/Datadir/PhDProject/MyObjects/V603Aql/V603Aql20230602/"
+MSSortOrder = 'MODIFIEDTIME'   # Recognised options: 'NAME' and 'MODIFIEDTIME'. Any other string means unsorted.
+ProcessMeasurementSets = True   # If False the program will select but not process the MeasurementSets.
+ProcessAllMeasurementSets = True   # If True the MeasurementSetNumbers list (defined below) is ignored.
+MeasurementSetNumbers = [1,]   # These MeasurementSets will be processed, in the given order.
 
 
 # Write the TaQL query, run it, get the result into a dataframe (df). Then return the df.
@@ -93,12 +95,15 @@ def count_flags_per_antenna(in_maintab, in_printmessages=False):
             print(inner_result[i])
         print('\n')
     
-    mytable = []
-    for i in range(inner_result.nrows()):
-        mytable.append(inner_result[:][i])
-    df = pd.DataFrame(mytable)
-    df['total'] = df['flagged'] + df['clear']
-    df['percentage'] = 100. * (df['flagged'] / df['total'])
+    if len(inner_result) == 0:
+        df = pd.DataFrame(columns=['ANTENNA', 'NAME', 'flagged', 'clear', 'total', 'percentage'])
+    else:
+        mytable = []
+        for i in range(inner_result.nrows()):
+            mytable.append(inner_result[:][i])
+        df = pd.DataFrame(mytable)
+        df['total'] = df['flagged'] + df['clear']
+        df['percentage'] = 100. * (df['flagged'] / df['total'])
     
     if in_printmessages:
         with pd.option_context('display.max_rows', None,
@@ -114,11 +119,11 @@ def count_flags_per_antenna(in_maintab, in_printmessages=False):
 # Write the TaQL query, run it, get the result into a dataframe (df). Then return the df.
 def count_flags_per_scan(in_maintab, in_printmessages=False):
     inner_query = """
-    select SCAN_NUMBER, gntrue(FLAG) as flagged, gnfalse(FLAG) as clear
+    select SCAN_NUMBER, (select NAME from {}::FIELD)[FIELD_ID] as FIELD, gntrue(FLAG) as flagged, gnfalse(FLAG) as clear
     from {}
     where ANTENNA1!=ANTENNA2
     groupby SCAN_NUMBER orderby SCAN_NUMBER
-    """.format(in_maintab.name())
+    """.format(in_maintab.name(), in_maintab.name(), in_maintab.name())
     
     if in_printmessages:
         print("inner_query: {}".format(inner_query))
@@ -134,12 +139,15 @@ def count_flags_per_scan(in_maintab, in_printmessages=False):
             print(inner_result[i])
         print('\n')
     
-    mytable = []
-    for i in range(inner_result.nrows()):
-        mytable.append(inner_result[:][i])
-    df = pd.DataFrame(mytable)
-    df['total'] = df['flagged'] + df['clear']
-    df['percentage'] = 100. * (df['flagged'] / df['total'])
+    if len(inner_result) == 0:
+        df = pd.DataFrame(columns=['SCAN_NUMBER', 'FIELD', 'flagged', 'clear', 'total', 'percentage'])
+    else:
+        mytable = []
+        for i in range(inner_result.nrows()):
+            mytable.append(inner_result[:][i])
+        df = pd.DataFrame(mytable)
+        df['total'] = df['flagged'] + df['clear']
+        df['percentage'] = 100. * (df['flagged'] / df['total'])
     
     if in_printmessages:
         with pd.option_context('display.max_rows', None,
@@ -179,11 +187,14 @@ def getmaintableinfo(in_msfile):
         logandprint("Counting finished. Time: {} (UTC)    Time spent counting: {}\n"
                     .format(countingperantenna_endtimetoprint,
                             countingperantenna_endtime - countingperantenna_starttime))
-        with pd.option_context('display.max_rows', None,
-                               'display.max_columns', None,
-                               'display.precision', 2,
-                               ):
-            logandprint(perantennaresult)
+        if perantennaresult.empty:
+            print("No visibilities found (not considering auto-correlations).\n")
+        else:
+            with pd.option_context('display.max_rows', None,
+                                   'display.max_columns', None,
+                                   'display.precision', 2,
+                                  ):
+                logandprint(perantennaresult)
         logandprint('\n----\n')
         
         logandprint("Flagged visibilities per scan. Self-correlations are not considered.")
@@ -194,24 +205,27 @@ def getmaintableinfo(in_msfile):
         logandprint("Counting finished. Time: {} (UTC)    Time spent counting: {}\n"
                     .format(countingperscan_endtimetoprint,
                             countingperscan_endtime - countingperscan_starttime))
-        with pd.option_context('display.max_rows', None,
-                               'display.max_columns', None,
-                               'display.precision', 2,
-                               ):
-            logandprint(perscanresult)
-        logandprint('\n')
-        perscantotalflagged = perscanresult['flagged'].sum()
-        perscantotalclear = perscanresult['clear'].sum()
-        logandprint("Total flags, summed from the per scan result. Self-correlations are excluded.")
-        logandprint("Flagged: {}   Total: {}    Percentage: {:.4}%\n"
-                    .format(perscantotalflagged, perscantotalflagged+perscantotalclear,
-                            100.*perscantotalflagged/(perscantotalflagged+perscantotalclear)))
+        if perscanresult.empty:
+            print("No visibilities found (not considering auto-correlations).\n")
+        else:
+            with pd.option_context('display.max_rows', None,
+                                   'display.max_columns', None,
+                                   'display.precision', 2,
+                                  ):
+                logandprint(perscanresult)
+            logandprint('\n')
+            perscantotalflagged = perscanresult['flagged'].sum()
+            perscantotalclear = perscanresult['clear'].sum()
+            logandprint("Total flags, summed from the per scan result. Self-correlations are excluded.")
+            logandprint("Flagged: {}   Total: {}    Percentage: {:.4}%\n"
+                        .format(perscantotalflagged, perscantotalflagged+perscantotalclear,
+                                100.*perscantotalflagged/(perscantotalflagged+perscantotalclear)))
         logandprint('----\n')
         
         flagcol = maintab.getcol('FLAG')   # flagcol is a 2-dim numpy array of shape (channels, correlations).
         flagcol_len = len(flagcol)
         total_points = np.shape(flagcol[0])[0]*np.shape(flagcol[0])[1]*flagcol_len   # It is assumed that all rows have the same shape (channels and correlations).
-        logandprint("Counting flagged visibilities, including self-correlations.")
+        logandprint("Counting all flagged visibilities, including self-correlations.")
         counting_starttime = datetime.datetime.now(datetime.timezone.utc)
         flagged_points = count_flags_total(maintab)
         counting_endtime = datetime.datetime.now(datetime.timezone.utc)
@@ -244,7 +258,12 @@ if not BasedirPath.is_dir():
 
 
 # Get all MeasurementSets from the base directory.
-MeasurementSets = sorted(BasedirPath.glob('*.ms/'))
+if MSSortOrder == 'NAME':
+    MeasurementSets = sorted(BasedirPath.glob('*.ms/'))
+elif MSSortOrder == 'MODIFIEDTIME':
+    MeasurementSets = sorted(BasedirPath.glob('*.ms/'), key=lambda x: x.stat().st_mtime)
+else:
+    MeasurementSets = list(BasedirPath.glob('*.ms/'))
 if len(MeasurementSets) >= 1:
     logandprint("MeasurementSets found:")
     for i, m in enumerate(MeasurementSets):
@@ -266,10 +285,13 @@ else:
 
 
 # Select the MeasurementSets which should be processed.
-SelectedMeasurementSets = []
-for i in MeasurementSetNumbers:
-    if (i > 0) and (i <= len(MeasurementSets)):
-        SelectedMeasurementSets.append(MeasurementSets[i-1])
+if ProcessAllMeasurementSets:
+    SelectedMeasurementSets = MeasurementSets
+else:
+    SelectedMeasurementSets = []
+    for i in MeasurementSetNumbers:
+        if (i > 0) and (i <= len(MeasurementSets)):
+            SelectedMeasurementSets.append(MeasurementSets[i-1])
 if len(SelectedMeasurementSets) <=0:
     with suppress(OSError): os.fsync(sys.stdout.fileno())
     cur_error = ValueError("No MeasurementSet is selected. MeasurementSetNumbers does not contain a valid index.")
