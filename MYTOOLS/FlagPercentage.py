@@ -10,6 +10,10 @@
 # It is available in /idia/software/containers/kern8.sif for example.
 # Alternatively. the casatools package can be used to access MS tables. It can be pip-installed in a python 3.10 env.
 # It may be available in /idia/software/containers/kern8.sif .
+# The casatools package does not have taql(), so python-casacore is still needed.
+# A workaround for using cvasatools would be to use table_instance.taql() , but then the rows
+# cannot be iterated over or accessed in any sane way. To get the number of rows one can use table_instance.nrows() ,
+# but table_instance.row() returns an undocumented object.
 
 # The CASA listobs task can give similar information.
 # It will give the number of rows per field and the number of unflagged rows per field.
@@ -71,15 +75,15 @@ MeasurementSetNumbers = [1,]   # These MeasurementSets will be processed, in the
 # Write the TaQL query, run it, get the result into a dataframe (df). Then return the df.
 def count_flags_per_antenna(in_maintab, in_printmessages=False):
     inner_query = """
-    with [select ANTENNA1, ANTENNA2, gntrue(FLAG) as NFLAG, gnfalse(FLAG) as NCLEAR
-          from {}
-          where ANTENNA1!=ANTENNA2
-          groupby ANTENNA1,ANTENNA2] as t1
-    select ANTENNA, (select NAME from {}::ANTENNA)[ANTENNA] as NAME, gsum(NFLAG) as flagged, gsum(NCLEAR) as clear
-    from [[select NFLAG,NCLEAR,ANTENNA1 as ANTENNA from t1],
-          [select NFLAG,NCLEAR,ANTENNA2 as ANTENNA from t1]]
-    groupby ANTENNA orderby ANTENNA
-    """.format(in_maintab.name(), in_maintab.name())
+        with [select ANTENNA1, ANTENNA2, gntrue(FLAG) as NFLAG, gnfalse(FLAG) as NCLEAR
+              from {0}
+              where ANTENNA1!=ANTENNA2
+              groupby ANTENNA1,ANTENNA2] as t1
+        select ANTENNA, (select NAME from {0}::ANTENNA)[ANTENNA] as NAME, gsum(NFLAG) as flagged, gsum(NCLEAR) as clear
+        from [[select NFLAG,NCLEAR,ANTENNA1 as ANTENNA from t1],
+              [select NFLAG,NCLEAR,ANTENNA2 as ANTENNA from t1]]
+        groupby ANTENNA orderby ANTENNA
+        """.format(in_maintab.name())
 
     if in_printmessages:
         print("inner_query: {}".format(inner_query))
@@ -119,11 +123,12 @@ def count_flags_per_antenna(in_maintab, in_printmessages=False):
 # Write the TaQL query, run it, get the result into a dataframe (df). Then return the df.
 def count_flags_per_scan(in_maintab, in_printmessages=False):
     inner_query = """
-    select SCAN_NUMBER, (select NAME from {}::FIELD)[FIELD_ID] as FIELD, gntrue(FLAG) as flagged, gnfalse(FLAG) as clear
-    from {}
-    where ANTENNA1!=ANTENNA2
-    groupby SCAN_NUMBER orderby SCAN_NUMBER
-    """.format(in_maintab.name(), in_maintab.name(), in_maintab.name())
+        select SCAN_NUMBER, (select NAME from ::FIELD)[FIELD_ID] as FIELD,
+               gntrue(FLAG) as flagged, gnfalse(FLAG) as clear
+        from {}
+        where ANTENNA1!=ANTENNA2
+        groupby SCAN_NUMBER orderby SCAN_NUMBER
+        """.format(in_maintab.name())
     
     if in_printmessages:
         print("inner_query: {}".format(inner_query))
@@ -160,6 +165,93 @@ def count_flags_per_scan(in_maintab, in_printmessages=False):
     return df
 
 
+# This should count per spw and then per channel in the spw.
+# SPECTRAL_WINDOW_ID goes to the SPECTRAL_WINDOW table. It has NAME, CHAN_FREQ and CHAN_WIDTH.
+# The rownumber() calls are not accepted in the first query. This is strange, since this use follows the TaQL manual.
+# The third query is a workaround: row numbers are added to the table as an extra column.
+def count_flags_per_channel(in_maintab, in_printmessages=False):
+    # inner_query = """
+    #     select t2.SPECTRAL_WINDOW_ID, t3.NAME as SPECTRAL_WINDOW_NAME, t3.CHAN_FREQ, t3.CHAN_WIDTH,
+    #            gntrues(FLAG) as flagged, gnfalses(FLAG) as clear, gntrues(FLAG) + gnfalses(FLAG) as total
+    #     from {} as t1
+    #         join ::DATA_DESCRIPTION as t2 on t1.DATA_DESC_ID=t2.rownumber()
+    #         join ::SPECTRAL_WINDOW as t3 on t2.SPECTRAL_WINDOW_ID=t3.rownumber()
+    #     where ANTENNA1!=ANTENNA2
+    #     groupby t2.SPECTRAL_WINDOW_ID orderby t2.SPECTRAL_WINDOW_ID
+    #     """.format(in_maintab.name())
+    
+    # inner_query = """
+    #     with [select (select SPECTRAL_WINDOW_ID from ::DATA_DESCRIPTION)[DATA_DESC_ID] as SPECTRAL_WINDOW_ID,
+    #            gntrues(FLAG) as flagged, gnfalses(FLAG) as clear, gntrues(FLAG) + gnfalses(FLAG) as total
+    #           from {}
+    #           where ANTENNA1!=ANTENNA2] as t1
+    #     select *
+    #     from t1
+    #     groupby SPECTRAL_WINDOW_ID orderby SPECTRAL_WINDOW_ID
+    #     """.format(in_maintab.name())
+    
+    inner_query = """
+        with [select rownumber() as rownr1, * from {0}::DATA_DESCRIPTION] as t1,
+             [select rownumber() as rownr2, * from {0}::SPECTRAL_WINDOW] as t2
+        select t1.SPECTRAL_WINDOW_ID, t2.NAME as SPECTRAL_WINDOW_NAME, t2.CHAN_FREQ, t2.CHAN_WIDTH,
+               gntrues(FLAG) as flagged, gnfalses(FLAG) as clear, gntrues(FLAG) + gnfalses(FLAG) as total
+        from {0} as t3
+            join t1 on t3.DATA_DESC_ID=t1.rownr1
+            join t2 on t1.SPECTRAL_WINDOW_ID=t2.rownr2
+        where ANTENNA1!=ANTENNA2
+        groupby t1.SPECTRAL_WINDOW_ID orderby t1.SPECTRAL_WINDOW_ID
+    """.format(in_maintab.name())
+    
+    
+    if in_printmessages:
+        print("inner_query: {}".format(inner_query))
+
+    inner_result = taql(inner_query)
+
+    if in_printmessages:
+        print("Result:")
+        print("Type: {}".format(type(inner_result)))
+        print(inner_result)
+        print('\n')
+        for i in range(len(inner_result)):
+            print(inner_result[i])
+        print('\n')
+
+    if len(inner_result) == 0:
+        df = pd.DataFrame(columns=['SPECTRAL_WINDOW_ID', 'SPECTRAL_WINDOW_NAME', 'CHAN_FREQ', 'CHAN_WIDTH', 'flagged', 'clear', 'total'])
+    else:
+        mytable = []
+        for i in range(inner_result.nrows()):
+            mytable.append(inner_result[:][i])
+        df = pd.DataFrame(mytable)
+
+    if in_printmessages:
+        with pd.option_context('display.max_rows', None,
+                               'display.max_columns', None,
+                               'display.precision', 2,
+                               ):
+            print(df)
+        print('\n')
+
+    inner_perfreqresult = {}
+    if not len(df) == len(set(df['SPECTRAL_WINDOW_ID'])):
+        raise ValueError("SPECTRAL_WINDOW_ID is not unique for each row.")
+    for i in range(len(df)):
+        cur_df = pd.DataFrame()
+        cur_df['CHAN_FREQ'] = np.ravel(df['CHAN_FREQ'][i])
+        cur_df['CHAN_WIDTH'] = np.ravel(df['CHAN_WIDTH'][i])
+        for j in range(len(df['flagged'][i][0])):
+            cur_df['flagged_{:03}'.format(j)] = list(zip(*df['flagged'][i]))[j]
+            cur_df['clear_{:03}'.format(j)] = list(zip(*df['clear'][i]))[j]
+            cur_df['total_{:03}'.format(j)] = list(zip(*df['total'][i]))[j]
+        inner_perfreqresult[df['SPECTRAL_WINDOW_ID'][i]] = {
+            'SPECTRAL_WINDOW_ID':df['SPECTRAL_WINDOW_ID'][i],
+            'SPECTRAL_WINDOW_NAME':df['SPECTRAL_WINDOW_NAME'][i],
+            'data':cur_df}
+    
+    return inner_perfreqresult
+
+
 # A count is done with the calc method. It internally translates to TaQL.
 def count_flags_total(in_maintab):
     inner_calcexpr = 'sum([select from {} giving [nTrue(FLAG)]])'.format(in_maintab.name())
@@ -188,7 +280,7 @@ def getmaintableinfo(in_msfile):
                     .format(countingperantenna_endtimetoprint,
                             countingperantenna_endtime - countingperantenna_starttime))
         if perantennaresult.empty:
-            print("No visibilities found (not considering auto-correlations).\n")
+            logandprint("No visibilities found (not considering auto-correlations).\n")
         else:
             with pd.option_context('display.max_rows', None,
                                    'display.max_columns', None,
@@ -206,7 +298,7 @@ def getmaintableinfo(in_msfile):
                     .format(countingperscan_endtimetoprint,
                             countingperscan_endtime - countingperscan_starttime))
         if perscanresult.empty:
-            print("No visibilities found (not considering auto-correlations).\n")
+            logandprint("No visibilities found (not considering auto-correlations).\n")
         else:
             with pd.option_context('display.max_rows', None,
                                    'display.max_columns', None,
@@ -220,6 +312,29 @@ def getmaintableinfo(in_msfile):
             logandprint("Flagged: {}   Total: {}    Percentage: {:.4}%\n"
                         .format(perscantotalflagged, perscantotalflagged+perscantotalclear,
                                 100.*perscantotalflagged/(perscantotalflagged+perscantotalclear)))
+        logandprint('----\n')
+        
+        logandprint("Flagged visibilities per frequency. Self-correlations are not considered.")
+        countingperfreq_starttime = datetime.datetime.now(datetime.timezone.utc)
+        perfreqresult = count_flags_per_channel(maintab)
+        countingperfreq_endtime = datetime.datetime.now(datetime.timezone.utc)
+        countingperfreq_endtimetoprint = countingperscan_endtime.replace(tzinfo=None).isoformat(sep=' ')
+        logandprint("Counting finished. Time: {} (UTC)    Time spent counting: {}\n"
+                    .format(countingperfreq_endtimetoprint,
+                            countingperfreq_endtime - countingperfreq_starttime))
+        if len(perfreqresult) == 0:
+            logandprint("No visibilities found (not considering auto-correlations).\n")
+        else:
+            for cur_wsid in perfreqresult:
+                logandprint("Spectral window: {}   -   {}".format(perfreqresult[cur_wsid]['SPECTRAL_WINDOW_ID'],
+                                                                  perfreqresult[cur_wsid]['SPECTRAL_WINDOW_NAME']))
+                with pd.option_context('display.max_rows', None,
+                                       'display.max_columns', None,
+                                       'display.width', 1000
+                                       ):
+                    logandprint(perfreqresult[cur_wsid]['data'])
+                    logandprint('')
+
         logandprint('----\n')
         
         flagcol = maintab.getcol('FLAG')   # flagcol is a 2-dim numpy array of shape (channels, correlations).
