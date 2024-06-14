@@ -26,7 +26,7 @@
 # The program can currently work on the full FLAG column of a MeasurementSet, determining a single percentage.
 # This is the percentage of visibilities flagged, including auto-correlations.
 # The program can not only count the total flag percentage, but also per antenna (not considering auto-correlations)
-# and per scan (not considering auto-correlations).
+# and per scan (not considering auto-correlations) and per frequency channel (not considering auto-correlations).
 # Finding the flag percentage for a finer selection is a feature which could be added in the future.
 
 # Also, in the future the program should be able to work with FLAGVERSION tables.
@@ -219,7 +219,8 @@ def count_flags_per_channel(in_maintab, in_printmessages=False):
         print('\n')
 
     if len(inner_result) == 0:
-        df = pd.DataFrame(columns=['SPECTRAL_WINDOW_ID', 'SPECTRAL_WINDOW_NAME', 'CHAN_FREQ', 'CHAN_WIDTH', 'flagged', 'clear', 'total'])
+        df = pd.DataFrame(columns=['SPECTRAL_WINDOW_ID', 'SPECTRAL_WINDOW_NAME',
+                                   'CHAN_FREQ', 'CHAN_WIDTH', 'flagged', 'clear', 'total'])
     else:
         mytable = []
         for i in range(inner_result.nrows()):
@@ -249,6 +250,7 @@ def count_flags_per_channel(in_maintab, in_printmessages=False):
             cur_df['flagged_'+cur_corrtype] = list(zip(*df['flagged'][i]))[j]
             cur_df['clear_'+cur_corrtype] = list(zip(*df['clear'][i]))[j]
             cur_df['total_'+cur_corrtype] = list(zip(*df['total'][i]))[j]
+            cur_df['percentage_'+cur_corrtype] = 100.*cur_df['flagged_'+cur_corrtype]/cur_df['total_'+cur_corrtype]
         inner_perfreqresult[df['SPECTRAL_WINDOW_ID'][i]] = {
             'SPECTRAL_WINDOW_ID':df['SPECTRAL_WINDOW_ID'][i],
             'SPECTRAL_WINDOW_NAME':df['SPECTRAL_WINDOW_NAME'][i],
@@ -335,8 +337,11 @@ def getmaintableinfo(in_msfile):
                                                                   perfreqresult[cur_wsid]['SPECTRAL_WINDOW_NAME']))
                 with pd.option_context('display.max_rows', None,
                                        'display.max_columns', None,
-                                       'display.width', 1000
+                                       'display.width', 1000,
+                                       'display.precision', 2
                                        ):
+                    perfreqresult[cur_wsid]['data']['CHAN_FREQ'] = perfreqresult[cur_wsid]['data']['CHAN_FREQ'].map("{:,.6f}".format)
+                    perfreqresult[cur_wsid]['data']['CHAN_WIDTH'] = perfreqresult[cur_wsid]['data']['CHAN_WIDTH'].map("{:,.6f}".format)
                     logandprint(perfreqresult[cur_wsid]['data'])
                     logandprint('')
 
