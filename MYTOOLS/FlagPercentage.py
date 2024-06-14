@@ -48,6 +48,7 @@ import pandas as pd
 from casacore.tables import table as tb, taql
 
 from MYHELPERSCRIPTS.loggingfunctions import logging_initialization, logandprint
+from MYHELPERSCRIPTS.stokestypes import stokes_types
 
 
 # Initialize logging and print a welcome message and the time.
@@ -194,6 +195,7 @@ def count_flags_per_channel(in_maintab, in_printmessages=False):
         with [select rownumber() as rownr1, * from {0}::DATA_DESCRIPTION] as t1,
              [select rownumber() as rownr2, * from {0}::SPECTRAL_WINDOW] as t2
         select t1.SPECTRAL_WINDOW_ID, t2.NAME as SPECTRAL_WINDOW_NAME, t2.CHAN_FREQ, t2.CHAN_WIDTH,
+               mscal.polcol('CORR_TYPE') as CORR_TYPE,
                gntrues(FLAG) as flagged, gnfalses(FLAG) as clear, gntrues(FLAG) + gnfalses(FLAG) as total
         from {0} as t3
             join t1 on t3.DATA_DESC_ID=t1.rownr1
@@ -201,7 +203,6 @@ def count_flags_per_channel(in_maintab, in_printmessages=False):
         where ANTENNA1!=ANTENNA2
         groupby t1.SPECTRAL_WINDOW_ID orderby t1.SPECTRAL_WINDOW_ID
     """.format(in_maintab.name())
-    
     
     if in_printmessages:
         print("inner_query: {}".format(inner_query))
@@ -241,9 +242,13 @@ def count_flags_per_channel(in_maintab, in_printmessages=False):
         cur_df['CHAN_FREQ'] = np.ravel(df['CHAN_FREQ'][i])
         cur_df['CHAN_WIDTH'] = np.ravel(df['CHAN_WIDTH'][i])
         for j in range(len(df['flagged'][i][0])):
-            cur_df['flagged_{:03}'.format(j)] = list(zip(*df['flagged'][i]))[j]
-            cur_df['clear_{:03}'.format(j)] = list(zip(*df['clear'][i]))[j]
-            cur_df['total_{:03}'.format(j)] = list(zip(*df['total'][i]))[j]
+            # cur_df['flagged_{:03}'.format(j)] = list(zip(*df['flagged'][i]))[j]
+            # cur_df['clear_{:03}'.format(j)] = list(zip(*df['clear'][i]))[j]
+            # cur_df['total_{:03}'.format(j)] = list(zip(*df['total'][i]))[j]
+            cur_corrtype = stokes_types[df['CORR_TYPE'][i][j]]
+            cur_df['flagged_'+cur_corrtype] = list(zip(*df['flagged'][i]))[j]
+            cur_df['clear_'+cur_corrtype] = list(zip(*df['clear'][i]))[j]
+            cur_df['total_'+cur_corrtype] = list(zip(*df['total'][i]))[j]
         inner_perfreqresult[df['SPECTRAL_WINDOW_ID'][i]] = {
             'SPECTRAL_WINDOW_ID':df['SPECTRAL_WINDOW_ID'][i],
             'SPECTRAL_WINDOW_NAME':df['SPECTRAL_WINDOW_NAME'][i],
