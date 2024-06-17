@@ -35,6 +35,11 @@
 # This functionality could be in another script.
 
 
+# Plotting settings.
+PlotPerFrequency = False
+Plot_MyDPI = 120
+
+
 # Imports.
 import logging
 from pathlib import Path
@@ -46,6 +51,8 @@ import numpy as np
 import pandas as pd
 # from casatools import table as tb   # This is unnecessary. It is not faster than python-casacore.
 from casacore.tables import table as tb, taql
+if PlotPerFrequency:
+    import matplotlib.pyplot as plt
 
 from MYHELPERSCRIPTS.loggingfunctions import logging_initialization, logandprint
 from MYHELPERSCRIPTS.stokestypes import stokes_types
@@ -333,16 +340,17 @@ def getmaintableinfo(in_msfile):
             logandprint("No visibilities found (not considering auto-correlations).\n")
         else:
             for cur_wsid in perfreqresult:
-                logandprint("Spectral window: {}   -   {}".format(perfreqresult[cur_wsid]['SPECTRAL_WINDOW_ID'],
-                                                                  perfreqresult[cur_wsid]['SPECTRAL_WINDOW_NAME']))
+                cur_pd_to_print = perfreqresult[cur_wsid]
+                logandprint("Spectral window: {}   -   {}".format(cur_pd_to_print['SPECTRAL_WINDOW_ID'],
+                                                                  cur_pd_to_print['SPECTRAL_WINDOW_NAME']))
                 with pd.option_context('display.max_rows', None,
                                        'display.max_columns', None,
                                        'display.width', 1000,
                                        'display.precision', 2
                                        ):
-                    perfreqresult[cur_wsid]['data']['CHAN_FREQ'] = perfreqresult[cur_wsid]['data']['CHAN_FREQ'].map("{:,.6f}".format)
-                    perfreqresult[cur_wsid]['data']['CHAN_WIDTH'] = perfreqresult[cur_wsid]['data']['CHAN_WIDTH'].map("{:,.6f}".format)
-                    logandprint(perfreqresult[cur_wsid]['data'])
+                    cur_pd_to_print['CHAN_FREQ'] = cur_pd_to_print['data']['CHAN_FREQ'].map("{:,.6f}".format)
+                    cur_pd_to_print['CHAN_WIDTH'] = cur_pd_to_print['data']['CHAN_WIDTH'].map("{:,.6f}".format)
+                    logandprint(cur_pd_to_print['data'])
                     logandprint('')
 
         logandprint('----\n')
@@ -364,7 +372,43 @@ def getmaintableinfo(in_msfile):
     
     maintab.close()
     logandprint("Table 'maintab' closed.\n")
-    return inner_result_string
+    return (perantennaresult, perscanresult, perfreqresult, inner_result_string)
+
+
+# This function makes a histogram of flagged and total points for all channels (spw combined) for
+# one polarization correlation. Usually, but not always, flags are applied over all polarization correlations together.
+# So, usually each polarization correlation choice would result in the same plot.
+def plot_perfequency_histogram(in_perfreqresult):
+    if len(perfreqresult) > 0:
+        fig, ax = plt.subplots(figsize=(1536/Plot_MyDPI, 1024/Plot_MyDPI), dpi=Plot_MyDPI, layout='constrained')
+        flagged_corr = ''
+        total_corr = ''
+        for cur_wsid in in_perfreqresult:
+            cur_freq = in_perfreqresult[cur_wsid]['data']['CHAN_FREQ']/1.e6
+            cur_width = in_perfreqresult[cur_wsid]['data']['CHAN_WIDTH']/1.e6
+            # print(in_perfreqresult[cur_wsid]['data'].columns)
+            # The third column (number 2) is assumed to be the first column with 'flagged' data.
+            cur_flagged = in_perfreqresult[cur_wsid]['data'].iloc[:, 2]
+            if flagged_corr == '':
+                flagged_corr = cur_flagged.name
+            if not (flagged_corr == cur_flagged.name):
+                print("Not every spw has the same first flagged column name: {} has {}\n"
+                      .format(cur_wsid, cur_flagged.name))
+            # The fifth column (number 4) is assumed to be the first column with 'total' data,
+            # and assumed to be related to the third column.
+            cur_total = in_perfreqresult[cur_wsid]['data'].iloc[:, 4]
+            if total_corr == '':
+                total_corr = cur_total.name
+            if not (total_corr == cur_total.name):
+                print("Not every spw has the same first total column name: {} has {}\n"
+                      .format(cur_wsid, cur_total.name))
+            ax.bar(x=cur_freq, height=cur_total, width=cur_width, color='blue', zorder=1.5,
+                   edgecolor='black', linewidth=1.)
+            ax.bar(x=cur_freq, height=cur_flagged, width=cur_width, color='red', zorder=2.5,
+                   edgecolor='black', linewidth=1.)
+        ax.set_xlabel("Frequency (MHz)")
+        ax.set_ylabel("Visibilities count: {} (red) and {} (blue)".format(flagged_corr, total_corr))
+        return fig, ax
 
 
 # Check if basedir is a directory.
@@ -432,8 +476,14 @@ else:
 # Process the MeasurementSets.
 for m in SelectedMeasurementSets:
     logandprint("Processing {}\n".format(m))
-    result_string = getmaintableinfo(str(m))
+    perantennaresult, perscanresult, perfreqresult, result_string = getmaintableinfo(str(m))
+    if PlotPerFrequency:
+        plot_perfequency_histogram(perfreqresult)
     logandprint("--------\n")
+
+
+if PlotPerFrequency:
+    plt.show()
 
 
 # Print the time at the end of the program (since this is the last part of it) and the program duration.
