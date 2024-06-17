@@ -36,8 +36,13 @@
 
 
 # Plotting settings.
-PlotPerFrequency = False
+PlotPerFrequency = True
 Plot_MyDPI = 120
+Plot_MyWidth = 1536
+Plot_MyHeight = 1024
+PlotDir = '.'   # Used to save plots if requested.
+SavePlots = True
+ShowPlots = False
 
 
 # Imports.
@@ -340,7 +345,7 @@ def getmaintableinfo(in_msfile):
             logandprint("No visibilities found (not considering auto-correlations).\n")
         else:
             for cur_wsid in perfreqresult:
-                cur_pd_to_print = perfreqresult[cur_wsid]
+                cur_pd_to_print = perfreqresult[cur_wsid].copy()
                 logandprint("Spectral window: {}   -   {}".format(cur_pd_to_print['SPECTRAL_WINDOW_ID'],
                                                                   cur_pd_to_print['SPECTRAL_WINDOW_NAME']))
                 with pd.option_context('display.max_rows', None,
@@ -348,9 +353,10 @@ def getmaintableinfo(in_msfile):
                                        'display.width', 1000,
                                        'display.precision', 2
                                        ):
-                    cur_pd_to_print['CHAN_FREQ'] = cur_pd_to_print['data']['CHAN_FREQ'].map("{:,.6f}".format)
-                    cur_pd_to_print['CHAN_WIDTH'] = cur_pd_to_print['data']['CHAN_WIDTH'].map("{:,.6f}".format)
-                    logandprint(cur_pd_to_print['data'])
+                    cur_data_to_print = cur_pd_to_print['data'].copy()
+                    cur_data_to_print['CHAN_FREQ'] = cur_data_to_print['CHAN_FREQ'].map("{:,.6f}".format)
+                    cur_data_to_print['CHAN_WIDTH'] = cur_data_to_print['CHAN_WIDTH'].map("{:,.6f}".format)
+                    logandprint(cur_data_to_print)
                     logandprint('')
 
         logandprint('----\n')
@@ -380,7 +386,7 @@ def getmaintableinfo(in_msfile):
 # So, usually each polarization correlation choice would result in the same plot.
 def plot_perfequency_histogram(in_perfreqresult):
     if len(perfreqresult) > 0:
-        fig, ax = plt.subplots(figsize=(1536/Plot_MyDPI, 1024/Plot_MyDPI), dpi=Plot_MyDPI, layout='constrained')
+        fig, ax = plt.subplots(figsize=(Plot_MyWidth/Plot_MyDPI, Plot_MyHeight/Plot_MyDPI), dpi=Plot_MyDPI, layout='constrained')
         flagged_corr = ''
         total_corr = ''
         for cur_wsid in in_perfreqresult:
@@ -473,16 +479,34 @@ else:
     logandprint("\n----\n")
 
 
+# Convert PlotDir to a resolved path and check if this path points to a directory. 
+if PlotPerFrequency and SavePlots:
+    plotdir_path = Path(PlotDir).resolve()
+    if not plotdir_path.is_dir():
+        raise NotADirectoryError("The PlotDir path (plotdir_path) does not point to a directory.")
+
+
 # Process the MeasurementSets.
 for m in SelectedMeasurementSets:
     logandprint("Processing {}\n".format(m))
     perantennaresult, perscanresult, perfreqresult, result_string = getmaintableinfo(str(m))
     if PlotPerFrequency:
-        plot_perfequency_histogram(perfreqresult)
+        fig, ax = plot_perfequency_histogram(perfreqresult)
+        if SavePlots:
+            plotfile_name_png = "FlaggedAndTotalHistogram_{}.png".format(m.name)
+            plotfile_path_png = plotdir_path / plotfile_name_png
+            plotfile_path_svg = plotfile_path_png.with_suffix('.svg')
+            # Save the images and print a message.
+            fig.savefig(plotfile_path_png, dpi=Plot_MyDPI, bbox_inches="tight")
+            fig.savefig(plotfile_path_svg, dpi=Plot_MyDPI, bbox_inches="tight")
+            logandprint("Figure saved to:")
+            logandprint(plotfile_path_png)
+            logandprint(plotfile_path_svg)
+            logandprint('')
     logandprint("--------\n")
 
 
-if PlotPerFrequency:
+if PlotPerFrequency and ShowPlots:
     plt.show()
 
 
