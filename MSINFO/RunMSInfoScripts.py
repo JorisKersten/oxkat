@@ -23,8 +23,10 @@ container="/idia/software/containers/oxkat-0.42.sif"
 # basedir="/scratch3/users/username/object/oxkatversion/sourcedir/"
 basedir="../"
 scriptdir=basedir + "MSINFO/"
-ProcessMeasurementSets = True
-MeasurementSetNumbers = [1,]   # These MeasurementSets will be processed if ProcessMeasurementSets is True.
+MSSortOrder = 'MODIFIEDTIME'   # Recognised options: 'NAME' and 'MODIFIEDTIME'. Any other string means unsorted.
+ProcessMeasurementSets = True   # If False the program will select but not process the MeasurementSets.
+ProcessAllMeasurementSets = True   # If True the MeasurementSetNumbers list (defined below) is ignored.
+MeasurementSetNumbers = [1,]   # These MeasurementSets will be processed, in the given order.
 
 
 # Print a welcome message.
@@ -45,7 +47,12 @@ if not BasedirPath.is_dir():
 
 
 # Get all MeasurementSets from the base directory.
-MeasurementSets = list(BasedirPath.glob('*.ms/'))
+if MSSortOrder == 'NAME':
+    MeasurementSets = sorted(BasedirPath.glob('*.ms/'))
+elif MSSortOrder == 'MODIFIEDTIME':
+    MeasurementSets = sorted(BasedirPath.glob('*.ms/'), key=lambda x: x.stat().st_mtime)
+else:
+    MeasurementSets = list(BasedirPath.glob('*.ms/'))
 if len(MeasurementSets) >= 1:
     print("MeasurementSets found:")
     for i, m in enumerate(MeasurementSets):
@@ -106,15 +113,18 @@ if not FindsunScriptPath.is_file():
 
 
 # Select the MeasurementSets which should be processed.
-SelectedMeasurementSets = []
-for i in MeasurementSetNumbers:
-    if i>0 and i<=len(MeasurementSets):
-        SelectedMeasurementSets.append(MeasurementSets[i-1])
-if len(SelectedMeasurementSets) <=0:
-    with suppress(OSError): os.fsync(sys.stdout.fileno())
-    raise ValueError("No MeasurementSet is selected. MeasurementSetNumbers does not contain a valid index.") 
+if ProcessAllMeasurementSets:
+    SelectedMeasurementSets = MeasurementSets
 else:
-    print("Selected Measurementsets:")
+    SelectedMeasurementSets = []
+    for i in MeasurementSetNumbers:
+        if (i > 0) and (i <= len(MeasurementSets)):
+            SelectedMeasurementSets.append(MeasurementSets[i-1])
+if len(SelectedMeasurementSets) <= 0:
+    with suppress(OSError): os.fsync(sys.stdout.fileno())
+    raise ValueError("No MeasurementSet is selected. MeasurementSetNumbers does not contain a valid index.")
+else:
+    print("Selected MeasurementSets:")
     for i,m in enumerate(SelectedMeasurementSets):
         print("({:2}): {}".format(i+1,m))
     print("")
