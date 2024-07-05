@@ -328,7 +328,7 @@ def getmaintableinfo(in_msfile):
             perscantotalflagged = perscanresult['flagged'].sum()
             perscantotalclear = perscanresult['clear'].sum()
             logandprint("Total flags, summed from the per scan result. Self-correlations are excluded.")
-            logandprint("Flagged: {}   Total: {}    Percentage: {:6.2f}%\n"
+            logandprint("Flagged: {:10}   Total: {:10}    Percentage: {:6.2f}%\n"
                         .format(perscantotalflagged, perscantotalflagged+perscantotalclear,
                                 100.*perscantotalflagged/(perscantotalflagged+perscantotalclear)))
         logandprint('----\n')
