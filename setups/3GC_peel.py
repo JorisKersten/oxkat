@@ -154,7 +154,7 @@ def main():
             step['comment'] = 'Run masked wsclean, high freq/angular resolution, on CORRECTED_DATA column of '+myms
             step['dependency'] = None
             step['id'] = 'WSDMA'+code
-            step['slurm_config'] = cfg.SLURM_EXTRALONG
+            step['slurm_config'] = cfg.SLURM_WSCLEAN
             step['pbs_config'] = cfg.PBS_EXTRALONG
             absmem = gen.absmem_helper(step,INFRASTRUCTURE,cfg.WSC_ABSMEM)
             syscall = CONTAINER_RUNNER+WSCLEAN_CONTAINER+' ' if USE_SINGULARITY else ''
@@ -271,7 +271,7 @@ def main():
             step['comment'] = 'Run CubiCal to solve for G (full model) and dE (problem source), peel out problem source'
             step['dependency'] = 7
             step['id'] = 'CL3GC'+code
-            step['slurm_config'] = cfg.SLURM_WSCLEAN
+            step['slurm_config'] = cfg.SLURM_EXTRALONG
             step['pbs_config'] = cfg.PBS_WSCLEAN
             syscall = CONTAINER_RUNNER+CUBICAL_CONTAINER+' ' if USE_SINGULARITY else ''
             syscall += gen.generate_syscall_cubical(parset=cfg.CAL_3GC_PEEL_PARSET, myms=myms, extra_args='--out-name '+outname+' --out-dir '+outdir)

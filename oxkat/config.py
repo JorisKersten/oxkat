@@ -126,7 +126,8 @@ SLURM_EXTRALONG = {
     'NTASKS': '1',
     'NODES': '1',
     'CPUS': '32',
-    'MEM': '230GB'
+    # 'MEM': '230GB'
+    'MEM': '0'
 }
 
 SLURM_HIGHMEM = {
