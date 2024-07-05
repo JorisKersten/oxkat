@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 # ian.heywood@physics.ox.ac.uk
+# Edited by Joris Kersten: points are also accepted and more information is printed.
 
-# Convert a DS9 (circles only) region file to a ClusterCat.npy file
+# Convert a DS9 (circles and points only) region file to a ClusterCat.npy file
 # for use with killMS. This is a pure Python script to avoid having
 # to invoke MakeModel.py for this simple purpose.
 
@@ -69,6 +70,16 @@ def main():
                 ra = float(x)
                 dec = float(y)
             centres.append((ra,dec))
+        elif line[0:5] == 'point':
+            coords = line.split('(')[-1].split(')')[0]
+            x,y = coords.split(',')
+            if ':' in line:
+                ra = hms2deg(x)
+                dec = dms2deg(y)
+            else:
+                ra = float(x)
+                dec = float(y)
+            centres.append((ra,dec))
         line = f.readline()
     f.close()
 
@@ -84,6 +95,7 @@ def main():
         ClusterCat[i]['Cluster'] = i
 
     print('Writing '+npyfile)
+    print('Number of centres: '+str(len(centres)))
 
     numpy.save(npyfile,ClusterCat)
 
