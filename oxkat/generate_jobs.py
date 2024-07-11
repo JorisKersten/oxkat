@@ -447,13 +447,14 @@ def generate_target_subms_list(myms,master_scan_list,master_field_list,user_scan
     if len(user_scans) == 0:
         for i in range(0,len(master_scan_list)):
             if master_field_list[i] in target_ids:
-                subms_ids.append(master_scan_list[i-1]) # -1 because sub-ms are zero indexed, scans are not
+                # subms_ids.append(master_scan_list[i-1]) # -1 because sub-ms are zero indexed, scans are not   # JK: This is a bug, but it often works by chance. It does not work for the first scan, but this one is not often targeted.
+                subms_ids.append(master_scan_list[i]-1) # -1 because sub-ms are zero indexed, scans are not
     else:
         user_scans = user_scans.split(',')
-        user_field_list = [master_field_list[int(i_text) - 1] for i_text in user_scans]   # JK : Here, user_scans contains text for the scans (scan names). It is assumed that these names are numbers starting from 1, with no number skipped.
+        user_field_list = [master_field_list[int(sn_text) - 1] for sn_text in user_scans]   # JK : Here, user_scans contains text for the scans (scan names). It is assumed that these names are (initially) numbers starting from 1, with no number skipped.
         for i in range(0,len(user_scans)):
-            if user_field_list[i-1] in target_ids:
-                subms_ids.append(i)
+            if user_field_list[i] in target_ids:
+                subms_ids.append(int(user_scans[i])-1)   # JK: The subms to be targeted should be corresponding to the users_scans scan name, which means subms_id is scan name minus 1.
     subms_list = []
     for i in range(0,len(subms_ids)):
         idx = str(subms_ids[i]).zfill(4)
