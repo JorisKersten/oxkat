@@ -443,7 +443,7 @@ def generate_target_subms_list(myms,master_scan_list,master_field_list,user_scan
     # 1704699392_sdp_l0_1024ch.ms/SUBMSS/1704699392_sdp_l0_1024ch.ms.0002.ms
     subms_ids = []
     master_scan_list = master_scan_list.split(',')   # JK: I believe this is now a list containing the scan numbers 1,2,3,4...LastScan, each as a string.
-    master_field_list = master_field_list.split(',')   # JK: I believe this is now a list of the field_id (as text) belonging to each scan, with item 0 belonging to scan number 1.
+    master_field_list = master_field_list.split(',')   # JK: I believe this is now a list of the field_id (as text) belonging to each scan, with item 0 of this list belonging to scan number 1.
     if len(user_scans) == 0:
         for i in range(0,len(master_scan_list)):   # JK: This length is always the total amount of scans. So it can be regarded as scan number minus 1.
             if master_field_list[i] in target_ids:
