@@ -134,8 +134,17 @@ def count_flags_per_antenna(in_maintab, in_printmessages=False):
 
 
 # Write the TaQL query, run it, get the result into a dataframe (df). Then return the df.
-def count_flags_per_scan(in_maintab, in_printmessages=False):
-    inner_query = """
+def count_flags_per_scan(in_maintab, in_selfcorrcount=False, in_printmessages=False):
+    if in_selfcorrcount:
+        inner_query = """
+        select SCAN_NUMBER, (select NAME from ::FIELD)[FIELD_ID] as FIELD,
+               gntrue(FLAG) as flagged, gnfalse(FLAG) as clear
+        from {}
+        where ANTENNA1==ANTENNA2
+        groupby SCAN_NUMBER orderby SCAN_NUMBER
+        """.format(in_maintab.name())
+    else:
+        inner_query = """
         select SCAN_NUMBER, (select NAME from ::FIELD)[FIELD_ID] as FIELD,
                gntrue(FLAG) as flagged, gnfalse(FLAG) as clear
         from {}
@@ -308,29 +317,104 @@ def getmaintableinfo(in_msfile):
                 logandprint(perantennaresult)
         logandprint('\n----\n')
         
-        logandprint("Flagged visibilities per scan. Self-correlations are not considered.")
+        logandprint("Flagged visibilities per scan. Self-correlations are counted separately.")
         countingperscan_starttime = datetime.datetime.now(datetime.timezone.utc)
         perscanresult = count_flags_per_scan(maintab)
+        perscanselfcorrresult = count_flags_per_scan(maintab, in_selfcorrcount=True)
         countingperscan_endtime = datetime.datetime.now(datetime.timezone.utc)
         countingperscan_endtimetoprint = countingperscan_endtime.replace(tzinfo=None).isoformat(sep=' ')
         logandprint("Counting finished. Time: {} (UTC)    Time spent counting: {}\n"
                     .format(countingperscan_endtimetoprint,
                             countingperscan_endtime - countingperscan_starttime))
-        if perscanresult.empty:
-            logandprint("No visibilities found (not considering auto-correlations).\n")
-        else:
+        if perscanresult.empty and perscanselfcorrresult.empty:
+            logandprint("No visibilities found.\n")
+        elif perscanresult.empty:
             with pd.option_context('display.max_rows', None,
                                    'display.max_columns', None,
                                    'display.precision', 2,
                                   ):
+                logandprint("Self-correlations result:")
+                logandprint(perscanselfcorrresult)
+            logandprint('\n')
+            perscantotalflagged = 0
+            perscantotalclear = 0
+            logandprint("Total flags, summed from the per scan result. Self-correlations are excluded.")
+            logandprint("Flagged: {:12}   Total: {:12}    Percentage: {:6.2f}%\n"
+                        .format(perscantotalflagged, perscantotalflagged+perscantotalclear,
+                                100.*perscantotalflagged/(perscantotalflagged+perscantotalclear)))
+            perscanselfcorrtotalflagged = perscanselfcorrresult['flagged'].sum()
+            perscanselfcorrtotalclear = perscanselfcorrresult['clear'].sum()
+            logandprint("Total self-correlation flags, summed from the per scan result.")
+            logandprint("Flagged: {:12}   Total: {:12}    Percentage: {:6.2f}%\n"
+                        .format(perscanselfcorrtotalflagged, perscanselfcorrtotalflagged+perscanselfcorrtotalclear,
+                                100.*perscanselfcorrtotalflagged
+                                    /(perscanselfcorrtotalflagged+perscanselfcorrtotalclear)))
+            perscantotalincselfcorrflagged = perscantotalflagged + perscanselfcorrtotalflagged
+            perscantotalincselfcorrclear = perscantotalclear + perscanselfcorrtotalclear
+            logandprint("Total flags, summed from the per scan result. Self-correlations are included.")
+            logandprint("Flagged: {:12}   Total: {:12}    Percentage: {:6.2f}%\n"
+                        .format(perscantotalincselfcorrflagged, perscantotalincselfcorrflagged + perscantotalincselfcorrclear,
+                                100.*perscantotalincselfcorrflagged
+                                    /(perscantotalincselfcorrflagged + perscantotalincselfcorrclear)))
+        elif perscanselfcorrresult.empty:
+            with pd.option_context('display.max_rows', None,
+                                   'display.max_columns', None,
+                                   'display.precision', 2,
+                                  ):
+                logandprint("Result excluding self-correlations:")
                 logandprint(perscanresult)
             logandprint('\n')
             perscantotalflagged = perscanresult['flagged'].sum()
             perscantotalclear = perscanresult['clear'].sum()
             logandprint("Total flags, summed from the per scan result. Self-correlations are excluded.")
-            logandprint("Flagged: {:10}   Total: {:10}    Percentage: {:6.2f}%\n"
+            logandprint("Flagged: {:12}   Total: {:12}    Percentage: {:6.2f}%\n"
                         .format(perscantotalflagged, perscantotalflagged+perscantotalclear,
                                 100.*perscantotalflagged/(perscantotalflagged+perscantotalclear)))
+            perscanselfcorrtotalflagged = 0
+            perscanselfcorrtotalclear = 0
+            logandprint("Total self-correlation flags, summed from the per scan result.")
+            logandprint("Flagged: {:12}   Total: {:12}    Percentage: {:6.2f}%\n"
+                        .format(perscanselfcorrtotalflagged, perscanselfcorrtotalflagged+perscanselfcorrtotalclear,
+                                100.*perscanselfcorrtotalflagged
+                                    /(perscanselfcorrtotalflagged+perscanselfcorrtotalclear)))
+            perscantotalincselfcorrflagged = perscantotalflagged + perscanselfcorrtotalflagged
+            perscantotalincselfcorrclear = perscantotalclear + perscanselfcorrtotalclear
+            logandprint("Total flags, summed from the per scan result. Self-correlations are included.")
+            logandprint("Flagged: {:12}   Total: {:12}    Percentage: {:6.2f}%\n"
+                        .format(perscantotalincselfcorrflagged, perscantotalincselfcorrflagged + perscantotalincselfcorrclear,
+                                100.*perscantotalincselfcorrflagged
+                                    /(perscantotalincselfcorrflagged + perscantotalincselfcorrclear)))
+        else:
+            with pd.option_context('display.max_rows', None,
+                                   'display.max_columns', None,
+                                   'display.precision', 2,
+                                  ):
+                logandprint("Result excluding self-correlations:")
+                logandprint(perscanresult)
+                logandprint('\n')
+                logandprint("Self-correlations result:")
+                logandprint(perscanselfcorrresult)
+            logandprint('\n')
+            perscantotalflagged = perscanresult['flagged'].sum()
+            perscantotalclear = perscanresult['clear'].sum()
+            logandprint("Total flags, summed from the per scan result. Self-correlations are excluded.")
+            logandprint("Flagged: {:12}   Total: {:12}    Percentage: {:6.2f}%\n"
+                        .format(perscantotalflagged, perscantotalflagged+perscantotalclear,
+                                100.*perscantotalflagged/(perscantotalflagged+perscantotalclear)))
+            perscanselfcorrtotalflagged = perscanselfcorrresult['flagged'].sum()
+            perscanselfcorrtotalclear = perscanselfcorrresult['clear'].sum()
+            logandprint("Total self-correlation flags, summed from the per scan result.")
+            logandprint("Flagged: {:12}   Total: {:12}    Percentage: {:6.2f}%\n"
+                        .format(perscanselfcorrtotalflagged, perscanselfcorrtotalflagged+perscanselfcorrtotalclear,
+                                100.*perscanselfcorrtotalflagged
+                                    /(perscanselfcorrtotalflagged+perscanselfcorrtotalclear)))
+            perscantotalincselfcorrflagged = perscantotalflagged + perscanselfcorrtotalflagged
+            perscantotalincselfcorrclear = perscantotalclear + perscanselfcorrtotalclear
+            logandprint("Total flags, summed from the per scan result. Self-correlations are included.")
+            logandprint("Flagged: {:12}   Total: {:12}    Percentage: {:6.2f}%\n"
+                        .format(perscantotalincselfcorrflagged, perscantotalincselfcorrflagged + perscantotalincselfcorrclear,
+                                100.*perscantotalincselfcorrflagged
+                                    /(perscantotalincselfcorrflagged + perscantotalincselfcorrclear)))
         logandprint('----\n')
         
         logandprint("Flagged visibilities per frequency. Self-correlations are not considered.")
