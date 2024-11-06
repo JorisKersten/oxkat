@@ -252,7 +252,10 @@ elif BAND == 'L':
 
     CAL_1GC_FREQRANGE = '*:1300~1400MHz'
     CAL_1GC_UVRANGE = '>150m'
-    CAL_1GC_0408_MODEL = ([17.066,0.0,0.0,0.0],[-1.179],'1284MHz')
+    # CAL_1GC_0408_MODEL = ([17.066,0.0,0.0,0.0],[-1.179],'1284MHz')   # Oxkat default. Q, U an V are set to 0.
+    CAL_1GC_0408_MODEL = ([17.106349850349602, 0.0, 0.0, 0.0],
+                          [-1.1109345695374806, -0.31865765436980115, +0.08610000000003283],
+                          '1284MHz')  # From the SARAO guide.
 
     CAL_1GC_BAD_FREQS = ['*:850~900MHz',      # Lower band edge
                         '*:1658~1800MHz',     # Upper bandpass edge
