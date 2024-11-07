@@ -74,7 +74,7 @@ def fit_flux_model(nu, s, sigma, nu0, sref=1, order=5):
 
 def convert_flux_model(nu=np.linspace(0.9, 2, 200) * 1e9, a=1, b=0, c=0, d=0, Reffreq=1.0e9):
     """
-    Convert a flux model specified by (a,b,c,d) and from the form
+    Convert a flux model specified by (a,b,c,d) from the form
     log10(S/Jy) = a + b*log10(nu/MHz) + c*log10(nu/MHz)**2 + ...
     to an ASA style flux model specified by (reffreq,fluxdensity,spix[0],spix[1],spix[2],..) in the form
     S/Jy = (fluxdensity/Jy) * (freq/reffreq)**( spix[0] + spix[1]*log10(freq/reffreq) + spix[2]*log10(freq/reffreq)**2 + .. )

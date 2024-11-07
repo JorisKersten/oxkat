@@ -240,7 +240,10 @@ if BAND == 'UHF':
 
     CAL_1GC_FREQRANGE = '*:850~900MHz'        # Clean part of the band to use for generating UHF 1GC G-solutions
     CAL_1GC_UVRANGE = '>150m'               # Selection for baselines to include during 1GC B/G solving (K excluded)
-    CAL_1GC_0408_MODEL = ([27.907,0.0,0.0,0.0],[-1.205],'850MHz')
+    # CAL_1GC_0408_MODEL = ([27.907,0.0,0.0,0.0],[-1.205],'850MHz')   # Oxkat default. Q, U an V are set to 0.
+    CAL_1GC_0408_MODEL = ([27.470360010132516, 0.0, 0.0, 0.0],
+                          [-0.9754515704517904, -0.3695104319938813, +0.08609999999992352],
+                          '816MHz')  # From the SARAO guide.
 
     CAL_1GC_BAD_FREQS = ['*:540~570MHz',      # Lower band edge
                         '*:1010~1150MHz']     # Upper band edge
@@ -283,7 +286,10 @@ elif BAND == 'S0':
 
     CAL_1GC_FREQRANGE = '*:2300~2400MHz'
     CAL_1GC_UVRANGE = '>150m'
-    CAL_1GC_0408_MODEL = ([9.193,0.0,0.0,0.0],[-1.144],'2187MHz')
+    # CAL_1GC_0408_MODEL = ([9.193,0.0,0.0,0.0],[-1.144],'2187MHz')   # Oxkat default. Q, U an V are set to 0.
+    CAL_1GC_0408_MODEL = ([9.122464793018002, 0.0, 0.0, 0.0],
+                          [-1.2445696279338307, -0.2588914156643619, +0.0860999999996433],
+                          '2187.5MHz')  # From the SARAO guide.
     CAL_1GC_BAD_FREQS = ['*:1700~1800MHz',    # Lower band edge
                         '*:2500~2650MHz']     # Upper band edge
     CAL_1GC_BL_FLAG_UVRANGE = '<600'
@@ -293,7 +299,10 @@ elif BAND == 'S1':
 
     CAL_1GC_FREQRANGE = ''
     CAL_1GC_UVRANGE = '>150m'
-    CAL_1GC_0408_MODEL = ([8.244,0.0,0.0,0.0],[-1.138],'2406MHz')
+    # CAL_1GC_0408_MODEL = ([8.244,0.0,0.0,0.0],[-1.138],'2406MHz')   # Oxkat default. Q, U an V are set to 0.
+    CAL_1GC_0408_MODEL = ([8.097108982395914, 0.0, 0.0, 0.0],
+                          [-1.2654922801458484, -0.24823465519206467, +0.08610000000046047],
+                          '2405.5MHz')  # From the SARAO guide.
     CAL_1GC_BAD_FREQS = ['*:1967~2056MHz',    # Lower band edge
                         '*:2756~2845MHz']     # Upper band edge
     CAL_1GC_BL_FLAG_UVRANGE = '<600'
@@ -303,7 +312,10 @@ elif BAND == 'S2':
 
     CAL_1GC_FREQRANGE = ''
     CAL_1GC_UVRANGE = '>150m'
-    CAL_1GC_0408_MODEL = ([7.468,0.0,0.0,0.0],[-1.133],'2625MHz')
+    # CAL_1GC_0408_MODEL = ([7.468,0.0,0.0,0.0],[-1.133],'2625MHz')   # Oxkat default. Q, U an V are set to 0.
+    CAL_1GC_0408_MODEL = ([7.245884751121363, 0.0, 0.0, 0.0],
+                          [-1.2839094078379405, -0.23846026913364016, +0.08609999999824958],
+                          '2624.5MHz')  # From the SARAO guide.
     CAL_1GC_BAD_FREQS = ['*:2187~2275MHz',    # Lower band edge
                         '*:2975~3063MHz']     # Upper band edge
     CAL_1GC_BL_FLAG_UVRANGE = '<600'
@@ -313,7 +325,10 @@ elif BAND == 'S3':
 
     CAL_1GC_FREQRANGE = ''
     CAL_1GC_UVRANGE = '>150m'
-    CAL_1GC_0408_MODEL = ([6.822,0.0,0.0,0.0],[-1.128],'2483MHz')
+    # CAL_1GC_0408_MODEL = ([6.822,0.0,0.0,0.0],[-1.128],'2483MHz')   # Oxkat default. Q, U an V are set to 0.
+    CAL_1GC_0408_MODEL = ([6.533073812314938, 0.0, 0.0, 0.0],
+                          [-1.3001964854131194, -0.22946971002254035, +0.08610000000983621],
+                          '2843.5MHz')  # From the SARAO guide.
     CAL_1GC_BAD_FREQS = ['*:2405~2493MHz',    # Lower band edge
                         '*:3194~3282MHz']     # Upper band edge
     CAL_1GC_BL_FLAG_UVRANGE = '<600'
@@ -323,7 +338,10 @@ elif BAND == 'S4':
 
     CAL_1GC_FREQRANGE = '*:2900~3000MHz'
     CAL_1GC_UVRANGE = '>150m'
-    CAL_1GC_0408_MODEL = ([6.423,0.0,0.0,0.0],[-1.124],'3000MHz')
+    # CAL_1GC_0408_MODEL = ([6.423,0.0,0.0,0.0],[-1.124],'3000MHz')   # Oxkat default. Q, U an V are set to 0.
+    CAL_1GC_0408_MODEL = ([5.929063869931191, 0.0, 0.0, 0.0],
+                          [-1.3147166320376764, -0.2211465440487231, +0.08609999999777565],
+                          '3062.5MHz')  # From the SARAO guide.
     CAL_1GC_BAD_FREQS = ['*:2600~2690MHz',    # Lower band edge
                         '*:3420~3600MHz']     # Upper band edge
     CAL_1GC_BL_FLAG_UVRANGE = '<600'
