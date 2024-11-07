@@ -653,5 +653,5 @@ CLUSTERCAT_NCPU = 8
 #
 
 
-BEAM_L = HOME+'/Beams/meerkat_pb_jones_cube_95channels_$(xy)_$(reim).fits'
-
+# BEAM_L = HOME+'/Beams/meerkat_pb_jones_cube_95channels_$(xy)_$(reim).fits'
+BEAM_L = HOME+'/Beams/meerkat_pb_jones_cube_mh_0852MHz_1716MHz_173channels_10deg_$(xy)_$(reim).fits'
