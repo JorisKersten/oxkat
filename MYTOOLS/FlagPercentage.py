@@ -322,8 +322,18 @@ def getmaintableinfo(in_msfile):
             logandprint("Flagged visibilities per antenna. Self-correlations are counted separately.")
         countingperantenna_starttime = datetime.datetime.now(datetime.timezone.utc)
         inner_perantennaresult = count_flags_per_antenna(maintab)
+        inner_perantennaresult.rename(columns={'flagged': 'flagged_CC',
+                                               'clear': "clear_CC",
+                                               'total': 'total_CC',
+                                               'percentage': 'percentage_CC'},
+                                      inplace=True, errors='ignore')   # Here CC means 'cross-correlations'.
         if CountSelfCorrPerAntenna:
             inner_perantennaselfcorrresult = count_flags_per_antenna(maintab, in_selfcorrcount=True)
+            inner_perantennaselfcorrresult.rename(columns={'flagged': 'flagged_SC',
+                                                           'clear': "clear_SC",
+                                                           'total': 'total_SC',
+                                                           'percentage': 'percentage_SC'},
+                                                  inplace=True, errors='ignore')   # Here CC means 'self-correlations'.
         else:
             inner_perantennaselfcorrresult = pd.DataFrame()
         countingperantenna_endtime = datetime.datetime.now(datetime.timezone.utc)
@@ -345,8 +355,8 @@ def getmaintableinfo(in_msfile):
             perantennatotalclear = 0
             logandprint("Total flags, summed from the per antenna result. Self-correlations are excluded.")
             logandprint("Flagged: {:12}   Total: {:12}    Percentage: {:6.2f}%\n".format(0, 0, 0))
-            perantennaselfcorrtotalflagged = inner_perantennaselfcorrresult['flagged'].sum()
-            perantennaselfcorrtotalclear = inner_perantennaselfcorrresult['clear'].sum()
+            perantennaselfcorrtotalflagged = inner_perantennaselfcorrresult['flagged_SC'].sum()
+            perantennaselfcorrtotalclear = inner_perantennaselfcorrresult['clear_SC'].sum()
             logandprint("Total self-correlation flags, summed from the per antenna result.")
             logandprint("Flagged: {:12}   Total: {:12}    Percentage: {:6.2f}%\n"
                         .format(perantennaselfcorrtotalflagged,
@@ -369,8 +379,8 @@ def getmaintableinfo(in_msfile):
                 logandprint("Result excluding self-correlations (all flags are counted twice: for each antenna in a baseline):")
                 logandprint(inner_perantennaresult)
             logandprint('\n')
-            perantennatotalflagged = inner_perantennaresult['flagged'].sum()
-            perantennatotalclear = inner_perantennaresult['clear'].sum()
+            perantennatotalflagged = inner_perantennaresult['flagged_CC'].sum()
+            perantennatotalclear = inner_perantennaresult['clear_CC'].sum()
             if perantennatotalflagged%2 != 0:
                 print("* WARNING: perantennatotalflagged is not even. *")
                 warnings.warn("The variable perantennatotalflagged is not even.")
@@ -399,18 +409,29 @@ def getmaintableinfo(in_msfile):
                                     100.*perantennatotalincselfcorrflagged
                                         /(perantennatotalincselfcorrflagged + perantennatotalincselfcorrclear)))
         else:
+            inner_perantennatotalresult = pd.merge(inner_perantennaresult, inner_perantennaselfcorrresult,
+                                                   how='outer', on='NAME', sort=True, suffixes=['_CC','_SC'])
+            inner_perantennatotalresult.insert(0, 'NAME', inner_perantennatotalresult.pop('NAME'))
+            inner_perantennatotalresult['flagged'] = inner_perantennatotalresult['flagged_CC'] + inner_perantennatotalresult['flagged_SC']
+            inner_perantennatotalresult['clear'] = inner_perantennatotalresult['clear_CC'] + inner_perantennatotalresult['clear_SC']
+            inner_perantennatotalresult['total'] = inner_perantennatotalresult['flagged'] + inner_perantennatotalresult['clear']
+            inner_perantennatotalresult['percentage'] = 100. * (inner_perantennatotalresult['flagged'] / inner_perantennatotalresult['total'])
             with pd.option_context('display.max_rows', None,
                                    'display.max_columns', None,
+                                   'display.width', 1000,
                                    'display.precision', 2,
                                   ):
-                logandprint("Result excluding self-correlations (all flags are counted twice: for each antenna in a baseline):")
-                logandprint(inner_perantennaresult)
-                logandprint('\n')
-                logandprint("Self-correlations result:")
-                logandprint(inner_perantennaselfcorrresult)
+                # logandprint("Result excluding self-correlations (all flags are counted twice: for each antenna in a baseline):")
+                # logandprint(inner_perantennaresult)
+                # logandprint('\n')
+                # logandprint("Self-correlations result:")
+                # logandprint(inner_perantennaselfcorrresult)
+                # logandprint('\n')
+                logandprint("Result (all cross-correlation flags, labeled CC, are counted twice: for each antenna in a baseline):")
+                logandprint(inner_perantennatotalresult)
             logandprint('\n')
-            perantennatotalflagged = inner_perantennaresult['flagged'].sum()
-            perantennatotalclear = inner_perantennaresult['clear'].sum()
+            perantennatotalflagged = inner_perantennaresult['flagged_CC'].sum()
+            perantennatotalclear = inner_perantennaresult['clear_CC'].sum()
             if perantennatotalflagged%2 != 0:
                 print("* WARNING: perantennatotalflagged is not even. *")
                 warnings.warn("The variable perantennatotalflagged is not even.")
@@ -425,8 +446,8 @@ def getmaintableinfo(in_msfile):
                                 perantennatotalflagged+perantennatotalclear,
                                 100.*perantennatotalflagged
                                     /(perantennatotalflagged + perantennatotalclear)))
-            perantennaselfcorrtotalflagged = inner_perantennaselfcorrresult['flagged'].sum()
-            perantennaselfcorrtotalclear = inner_perantennaselfcorrresult['clear'].sum()
+            perantennaselfcorrtotalflagged = inner_perantennaselfcorrresult['flagged_SC'].sum()
+            perantennaselfcorrtotalclear = inner_perantennaselfcorrresult['clear_SC'].sum()
             logandprint("Total self-correlation flags, summed from the per antenna result.")
             logandprint("Flagged: {:12}   Total: {:12}    Percentage: {:6.2f}%\n"
                         .format(perantennaselfcorrtotalflagged,
@@ -449,8 +470,18 @@ def getmaintableinfo(in_msfile):
             logandprint("Flagged visibilities per scan. Self-correlations are counted separately.")
         countingperscan_starttime = datetime.datetime.now(datetime.timezone.utc)
         inner_perscanresult = count_flags_per_scan(maintab)
+        inner_perscanresult.rename(columns={'flagged': 'flagged_CC',
+                                            'clear': "clear_CC",
+                                            'total': 'total_CC',
+                                            'percentage': 'percentage_CC'},
+                                   inplace=True, errors='ignore')  # Here CC means 'cross-correlations'.
         if CountSelfCorrPerScan:
             inner_perscanselfcorrresult = count_flags_per_scan(maintab, in_selfcorrcount=True)
+            inner_perscanselfcorrresult.rename(columns={'flagged': 'flagged_SC',
+                                                        'clear': "clear_SC",
+                                                        'total': 'total_SC',
+                                                        'percentage': 'percentage_SC'},
+                                               inplace=True, errors='ignore')  # Here SC means 'self-correlations'.
         else:
             inner_perscanselfcorrresult = pd.DataFrame()
         countingperscan_endtime = datetime.datetime.now(datetime.timezone.utc)
@@ -472,8 +503,8 @@ def getmaintableinfo(in_msfile):
             perscantotalclear = 0
             logandprint("Total flags, summed from the per scan result. Self-correlations are excluded.")
             logandprint("Flagged: {:12}   Total: {:12}    Percentage: {:6.2f}%\n".format(0, 0, 0))
-            perscanselfcorrtotalflagged = inner_perscanselfcorrresult['flagged'].sum()
-            perscanselfcorrtotalclear = inner_perscanselfcorrresult['clear'].sum()
+            perscanselfcorrtotalflagged = inner_perscanselfcorrresult['flagged_SC'].sum()
+            perscanselfcorrtotalclear = inner_perscanselfcorrresult['clear_SC'].sum()
             logandprint("Total self-correlation flags, summed from the per scan result.")
             logandprint("Flagged: {:12}   Total: {:12}    Percentage: {:6.2f}%\n"
                         .format(perscanselfcorrtotalflagged,
@@ -496,8 +527,8 @@ def getmaintableinfo(in_msfile):
                 logandprint("Result excluding self-correlations:")
                 logandprint(inner_perscanresult)
             logandprint('\n')
-            perscantotalflagged = inner_perscanresult['flagged'].sum()
-            perscantotalclear = inner_perscanresult['clear'].sum()
+            perscantotalflagged = inner_perscanresult['flagged_CC'].sum()
+            perscantotalclear = inner_perscanresult['clear_CC'].sum()
             logandprint("Total flags, summed from the per scan result. Self-correlations are excluded.")
             logandprint("Flagged: {:12}   Total: {:12}    Percentage: {:6.2f}%\n"
                         .format(perscantotalflagged,
@@ -518,26 +549,37 @@ def getmaintableinfo(in_msfile):
                                     100.*perscantotalincselfcorrflagged
                                         /(perscantotalincselfcorrflagged + perscantotalincselfcorrclear)))
         else:
+            inner_perscantotalresult = pd.merge(inner_perscanresult, inner_perscanselfcorrresult,
+                                                   how='outer', on='SCAN_NUMBER', sort=True, suffixes=['_CC', '_SC'])
+            inner_perscantotalresult.insert(0, 'SCAN_NUMBER', inner_perscantotalresult.pop('SCAN_NUMBER'))
+            inner_perscantotalresult['flagged'] = inner_perscantotalresult['flagged_CC'] + inner_perscantotalresult['flagged_SC']
+            inner_perscantotalresult['clear'] = inner_perscantotalresult['clear_CC'] + inner_perscantotalresult['clear_SC']
+            inner_perscantotalresult['total'] = inner_perscantotalresult['flagged'] + inner_perscantotalresult['clear']
+            inner_perscantotalresult['percentage'] = 100. * (inner_perscantotalresult['flagged'] / inner_perscantotalresult['total'])
             with pd.option_context('display.max_rows', None,
                                    'display.max_columns', None,
+                                   'display.width', 1000,
                                    'display.precision', 2,
                                   ):
-                logandprint("Result excluding self-correlations:")
-                logandprint(inner_perscanresult)
-                logandprint('\n')
-                logandprint("Self-correlations result:")
-                logandprint(inner_perscanselfcorrresult)
+                # logandprint("Result excluding self-correlations:")
+                # logandprint(inner_perscanresult)
+                # logandprint('\n')
+                # logandprint("Self-correlations result:")
+                # logandprint(inner_perscanselfcorrresult)
+                # logandprint('\n')
+                logandprint("Result:")
+                logandprint(inner_perscantotalresult)
             logandprint('\n')
-            perscantotalflagged = inner_perscanresult['flagged'].sum()
-            perscantotalclear = inner_perscanresult['clear'].sum()
+            perscantotalflagged = inner_perscanresult['flagged_CC'].sum()
+            perscantotalclear = inner_perscanresult['clear_CC'].sum()
             logandprint("Total flags, summed from the per scan result. Self-correlations are excluded.")
             logandprint("Flagged: {:12}   Total: {:12}    Percentage: {:6.2f}%\n"
                         .format(perscantotalflagged,
                                 perscantotalflagged + perscantotalclear,
                                 100.*perscantotalflagged
                                     /(perscantotalflagged+perscantotalclear)))
-            perscanselfcorrtotalflagged = inner_perscanselfcorrresult['flagged'].sum()
-            perscanselfcorrtotalclear = inner_perscanselfcorrresult['clear'].sum()
+            perscanselfcorrtotalflagged = inner_perscanselfcorrresult['flagged_SC'].sum()
+            perscanselfcorrtotalclear = inner_perscanselfcorrresult['clear_SC'].sum()
             logandprint("Total self-correlation flags, summed from the per scan result.")
             logandprint("Flagged: {:12}   Total: {:12}    Percentage: {:6.2f}%\n"
                         .format(perscanselfcorrtotalflagged,
