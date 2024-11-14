@@ -11,7 +11,7 @@ import os
 import sys
 
 
-execfile('oxkat/casa_read_project_info.py',,globals())
+execfile('oxkat/casa_read_project_info.py',globals())
 
 
 mslist = False
