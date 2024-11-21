@@ -40,7 +40,7 @@ PlotPerFrequency = True   # The plot will only be created if CountPerFrequency i
 Plot_MyDPI = 120
 Plot_MyWidth = 1536
 Plot_MyHeight = 1024
-Plot_EdgeColor = 'black'   # This can be changed from 'black' to None if many channels are plotted.
+Plot_EdgeColor = None   # This can be changed from None to 'black' if not too many channels are plotted.
 PlotDir = '.'   # Used to save plots if requested.
 SavePlots = True
 ShowPlots = False
@@ -85,10 +85,10 @@ MSSortOrder = 'MODIFIEDTIME'   # Recognised options: 'NAME' and 'MODIFIEDTIME'. 
 ProcessMeasurementSets = True   # If False the program will select but not process the MeasurementSets.
 ProcessAllMeasurementSets = True   # If True the MeasurementSetNumbers list (defined below) is ignored.
 MeasurementSetNumbers = [1,]   # These MeasurementSets will be processed, in the given order.
-CountSelfCorrPerAntenna = False   # If true the total amount of flags will also be printed.
+CountSelfCorrPerAntenna = True   # If true the total amount of flags will also be printed.
 CountSelfCorrPerScan = True   # If true the total amount of flags will also be printed.
 CountPerFrequency = True
-CountTotal = False
+CountTotal = True
 
 
 # Write the TaQL query, run it, get the result into a dataframe (df). Then return the df.
@@ -142,6 +142,7 @@ def count_flags_per_antenna(in_maintab, in_selfcorrcount=False, in_printmessages
     if in_printmessages:
         with pd.option_context('display.max_rows', None,
                                'display.max_columns', None,
+                               'display.width', 1000,
                                'display.precision', 2,
                                ):
             print(df)
@@ -196,6 +197,7 @@ def count_flags_per_scan(in_maintab, in_selfcorrcount=False, in_printmessages=Fa
     if in_printmessages:
         with pd.option_context('display.max_rows', None,
                                'display.max_columns', None,
+                               'display.width', 1000,
                                'display.precision', 2,
                                ):
             print(df)
@@ -268,6 +270,7 @@ def count_flags_per_channel(in_maintab, in_printmessages=False):
     if in_printmessages:
         with pd.option_context('display.max_rows', None,
                                'display.max_columns', None,
+                               'display.width', 1000,
                                'display.precision', 2,
                                ):
             print(df)
@@ -346,6 +349,7 @@ def getmaintableinfo(in_msfile):
         elif inner_perantennaresult.empty:
             with pd.option_context('display.max_rows', None,
                                    'display.max_columns', None,
+                                   'display.width', 1000,
                                    'display.precision', 2,
                                   ):
                 logandprint("Self-correlations result:")
@@ -374,6 +378,7 @@ def getmaintableinfo(in_msfile):
         elif inner_perantennaselfcorrresult.empty:
             with pd.option_context('display.max_rows', None,
                                    'display.max_columns', None,
+                                   'display.width', 1000,
                                    'display.precision', 2,
                                   ):
                 logandprint("Result excluding self-correlations (all flags are counted twice: for each antenna in a baseline):")
@@ -494,6 +499,7 @@ def getmaintableinfo(in_msfile):
         elif inner_perscanresult.empty:
             with pd.option_context('display.max_rows', None,
                                    'display.max_columns', None,
+                                   'display.width', 1000,
                                    'display.precision', 2,
                                   ):
                 logandprint("Self-correlations result:")
@@ -522,6 +528,7 @@ def getmaintableinfo(in_msfile):
         elif inner_perscanselfcorrresult.empty:
             with pd.option_context('display.max_rows', None,
                                    'display.max_columns', None,
+                                   'display.width', 1000,
                                    'display.precision', 2,
                                   ):
                 logandprint("Result excluding self-correlations:")
