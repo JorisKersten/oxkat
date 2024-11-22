@@ -95,12 +95,12 @@ CountTotal = True
 def count_flags_per_antenna(in_maintab, in_selfcorrcount=False, in_printmessages=False):
     if in_selfcorrcount:
         inner_query = """
-        with [select ANTENNA1, ANTENNA2, gntrue(FLAG) as NFLAG, gnfalse(FLAG) as NCLEAR
+        with [select ANTENNA1 as ANTENNA, gntrue(FLAG) as NFLAG, gnfalse(FLAG) as NCLEAR
               from {0}
               where ANTENNA1==ANTENNA2
-              groupby ANTENNA1,ANTENNA2] as t1
+              groupby ANTENNA1] as t1
         select ANTENNA, (select NAME from {0}::ANTENNA)[ANTENNA] as NAME, gsum(NFLAG) as flagged, gsum(NCLEAR) as clear
-        from [select NFLAG,NCLEAR,ANTENNA1 as ANTENNA from t1]
+        from t1
         groupby ANTENNA orderby ANTENNA
         """.format(in_maintab.name())
     else:
@@ -757,7 +757,7 @@ else:
     logandprint("\n----\n")
 
 
-# Convert PlotDir to a resolved path and check if this path points to a directory. 
+# Convert PlotDir to a resolved path and check if this path points to a directory.
 if CountPerFrequency and PlotPerFrequency and SavePlots:
     plotdir_path = Path(PlotDir).resolve()
     if not plotdir_path.is_dir():
