@@ -615,6 +615,7 @@ def getmaintableinfo(in_msfile):
             if len(mid_perfreqresult) == 0:
                 logandprint("No visibilities found (not considering auto-correlations).\n")
             else:
+                logandprint("Result (not considering auto-correlations):")
                 for cur_wsid in mid_perfreqresult:
                     cur_pd_to_print = mid_perfreqresult[cur_wsid].copy()
                     logandprint("Spectral window: {}   -   {}".format(cur_pd_to_print['SPECTRAL_WINDOW_ID'],
@@ -622,11 +623,14 @@ def getmaintableinfo(in_msfile):
                     with pd.option_context('display.max_rows', None,
                                            'display.max_columns', None,
                                            'display.width', 1000,
-                                           'display.precision', 2
+                                           'display.precision', 2,
                                            ):
                         cur_data_to_print = cur_pd_to_print['data'].copy()
                         cur_data_to_print['CHAN_FREQ'] = cur_data_to_print['CHAN_FREQ'].map("{:,.6f}".format)
                         cur_data_to_print['CHAN_WIDTH'] = cur_data_to_print['CHAN_WIDTH'].map("{:,.6f}".format)
+                        for cur_col in list(cur_data_to_print.columns):
+                            if cur_col.startswith('percentage_'):
+                                cur_data_to_print[cur_col] = cur_data_to_print[cur_col].map('{:.2f}'.format)
                         logandprint(cur_data_to_print)
                         logandprint('')
 
