@@ -637,7 +637,7 @@ def generate_syscall_wsclean(mslist,
 
     # Gridding
     if usewgridder:
-        syscall += '-gridder wgridder -wgridder-accuracy 1e-5 -no-small-inversion -parallel-gridding 8 '
+        syscall += '-gridder wgridder -wgridder-accuracy 1e-5 -min-grid-resolution -parallel-gridding 8 '
         # syscall += '-use-wgridder '
 #        syscall += '-wgridder-accuracy '+str(wgridderaccuracy)+' '
     if bda and not useidg:
@@ -663,7 +663,7 @@ def generate_syscall_wsclean(mslist,
     if multiscale:
         syscall += '-multiscale '
         syscall += '-multiscale-scales '+scales+' '
-    syscall += ('-local-rms -local-rms-method rms-with-min -local-rms-window 50 -auto-threshold 4.5'
+    syscall += ('-local-rms -local-rms-method rms-with-min -local-rms-window 50 -local-rms-strength 0.5 -auto-threshold 4.5'
                 ' -niter ')+str(niter)+' '
     # syscall += '-niter '+str(niter)+' '
     syscall += '-gain '+str(gain)+' '
