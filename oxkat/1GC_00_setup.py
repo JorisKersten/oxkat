@@ -586,7 +586,7 @@ def main():
         target_cal_map,target_cal_separations = target_cal_pairs(target_dirs,target_names,target_ids,
                                                     secondary_dirs,secondary_names,secondary_ids)
     else:
-        target_cal_map = [int(x) for x in CAL_1GC_SECONDARIES.split(',')]   # Here target_cal_map is set to a list of strings of ints. At the end of 'else' it should contain field names.
+        target_cal_map = [int(x) for x in CAL_1GC_SECONDARIES.split(',')]   # Here target_cal_map is set to a list of ints. At the end of 'else' it should contain field names.
         if len(target_cal_map) != len(target_dirs) and len(target_cal_map) > 1:
             mylogger.info('Target-secondary mapping is ambiguous, reverting to auto')
             target_cal_map,target_cal_separations = target_cal_pairs(target_dirs,target_names,target_ids,
@@ -598,7 +598,7 @@ def main():
             secondary_names_extended = secondary_names * len(target_dirs)
             secondary_ids_extended = secondary_ids * len(target_dirs)
             target_cal_map,target_cal_separations = target_cal_pairs(target_dirs,target_names,target_ids,
-                                                    secondary_dirs,secondary_names,secondary_ids)
+                                                    secondary_dirs_extended,secondary_names_extended,secondary_ids_extended)
 
 
     # ------------------------------------------------------------------------------
