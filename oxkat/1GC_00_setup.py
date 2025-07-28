@@ -354,7 +354,7 @@ def get_primary_tag(candidate_dirs,
 def target_cal_pairs(target_dirs,target_names,target_ids,
                 secondary_dirs,secondary_names,secondary_ids):
 
-    # The target_cal_map is a list of secondary field IDs of length target_ids
+    # The target_cal_map is a list of secondary field NAMES (not IDs) of length target_ids
     # It links a specific secondary to a specific target
     target_cal_map = []
     target_cal_separations = []
@@ -552,8 +552,8 @@ def main():
     if CAL_1GC_SECONDARIES != 'auto':
         secondary_ids = [str(x) for x in CAL_1GC_SECONDARIES.split(',')]
         secondary_ids = list(dict.fromkeys(secondary_ids)) # 
-        secondary_names = [field_names[i] for i in secondary_ids]
-        secondary_dirs = [field_dirs[i] for i in secondary_ids]
+        secondary_names = [field_names[int(i)] for i in secondary_ids]
+        secondary_dirs = [field_dirs[int(i)][0].tolist() for i in secondary_ids]
     else:
         secondary_dirs, secondary_names, secondary_ids = get_secondaries(master_ms,
                                                             secondary_state,
@@ -568,8 +568,8 @@ def main():
 
     if CAL_1GC_TARGETS != 'auto':
         target_ids = [str(x) for x in CAL_1GC_TARGETS.split(',')]
-        target_names = [field_names[i] for i in target_ids]
-        target_dirs = [field_dirs[i][0] for i in target_ids]
+        target_names = [field_names[int(i)] for i in target_ids]
+        target_dirs = [field_dirs[int(i)][0].tolist() for i in target_ids]
     else:
         target_dirs, target_names, target_ids = get_targets(master_ms,
                                                             target_state,
@@ -586,14 +586,19 @@ def main():
         target_cal_map,target_cal_separations = target_cal_pairs(target_dirs,target_names,target_ids,
                                                     secondary_dirs,secondary_names,secondary_ids)
     else:
-        target_cal_map = [int(x) for x in CAL_1GC_SECONDARIES.split(',')]
+        target_cal_map = [int(x) for x in CAL_1GC_SECONDARIES.split(',')]   # Here target_cal_map is set to a list of strings of ints. At the end of 'else' it should contain field names.
         if len(target_cal_map) != len(target_dirs) and len(target_cal_map) > 1:
             mylogger.info('Target-secondary mapping is ambiguous, reverting to auto')
             target_cal_map,target_cal_separations = target_cal_pairs(target_dirs,target_names,target_ids,
                                                     secondary_dirs,secondary_names,secondary_ids)
         elif len(target_cal_map) == 1:
             mylogger.info('User requested field '+str(target_cal_map)+' as secondary calibrator for all targets')
-            target_cal_map = target_cal_map * len(target_dirs)
+            # target_cal_map = target_cal_map * len(target_dirs)   # This is wrong. There should be a field name in target_cal_map .
+            secondary_dirs_extended = secondary_dirs * len(target_dirs)
+            secondary_names_extended = secondary_names * len(target_dirs)
+            secondary_ids_extended = secondary_ids * len(target_dirs)
+            target_cal_map,target_cal_separations = target_cal_pairs(target_dirs,target_names,target_ids,
+                                                    secondary_dirs,secondary_names,secondary_ids)
 
 
     # ------------------------------------------------------------------------------
