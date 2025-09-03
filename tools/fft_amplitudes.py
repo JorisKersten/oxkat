@@ -47,6 +47,18 @@ def hist_eq(image,nbins):
     return image_eq
 
 
+def to_uint16(img):
+    import numpy as np
+    # replace NaNs and Infs with 0
+    img = np.nan_to_num(img, nan=0.0, posinf=0.0, neginf=0.0)
+    lo, hi = np.min(img), np.max(img)
+    if hi > lo:
+        img = (img - lo) / (hi - lo)
+    else:
+        img = np.zeros_like(img)
+    return (img * 65535).astype(np.uint16)
+
+
 def apply_hanning(data):
     # Apply Hanning filter to reduce edge effects
     window = numpy.outer(numpy.hanning(data.shape[0]), numpy.hanning(data.shape[1]))
@@ -91,13 +103,29 @@ def main():
         shutil.copyfile(infits,fftfits)
         flush_fits(fftimg,fftfits)
 
+    # if not noeq:
+    #     fftimg = hist_eq(fftimg,nbins)
+
+    # if pngname == '':
+    #     pngname = infits+'_FFT_amplitudes.png'
+
+    # imageio.imwrite(pngname,fftimg)
+
+
+    # Optional histogram equalization (still float)
     if not noeq:
-        fftimg = hist_eq(fftimg,nbins)
+        fftimg = hist_eq(fftimg, nbins)          # returns floats
+
+    # Nice for dynamic range in FFTs
+    viz = numpy.log1p(fftimg)                    # still float
+
+    # Map to integer type PNG understands
+    viz16 = to_uint16(viz)                       # or to_uint8(viz)
 
     if pngname == '':
-        pngname = infits+'_FFT_amplitudes.png'
+        pngname = infits + '_FFT_amplitudes.png'
 
-    imageio.imwrite(pngname,fftimg)
+    imageio.imwrite(pngname, viz16)              # now OK: uint16 grayscale PNG
 
 
 if __name__ == "__main__":
