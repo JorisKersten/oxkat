@@ -6,6 +6,7 @@ import imageio
 import numpy
 from argparse import ArgumentParser
 from astropy.io import fits
+import shutil
     
 
 def get_image(fitsfile):
@@ -17,6 +18,18 @@ def get_image(fitsfile):
     else:
             image = numpy.array(input_hdu.data[0,0,:,:])
     return image
+
+
+def flush_fits(image,fits_file):
+    f = fits.open(fits_file,mode='update')
+    input_hdu = f[0]
+    if len(input_hdu.data.shape) == 2:
+        input_hdu.data[:,:] =image
+    elif len(input_hdu.data.shape) == 3:
+        input_hdu.data[0,:,:] = image
+    else:
+        input_hdu.data[0,0,:,:] = image
+    f.flush()
 
 
 def fft_image(image):
@@ -34,6 +47,26 @@ def hist_eq(image,nbins):
     return image_eq
 
 
+def to_uint16(img):
+    import numpy as np
+    # replace NaNs and Infs with 0
+    img = np.nan_to_num(img, nan=0.0, posinf=0.0, neginf=0.0)
+    lo, hi = np.min(img), np.max(img)
+    if hi > lo:
+        img = (img - lo) / (hi - lo)
+    else:
+        img = np.zeros_like(img)
+    return (img * 65535).astype(np.uint16)
+
+
+def apply_hanning(data):
+    # Apply Hanning filter to reduce edge effects
+    window = numpy.outer(numpy.hanning(data.shape[0]), numpy.hanning(data.shape[1]))
+    windowed_data = data * window
+    return windowed_data
+
+
+
 def main():
 
     parser = ArgumentParser(description='FFT a FITS images and render the amplitudes to a PNG for inspection')
@@ -46,24 +79,53 @@ def main():
                       help = 'Disable histogram equalisation', default = False, action = 'store_true')
     parser.add_argument('-n','--nbins', dest = 'nbins',
                       help = 'Number of bins for histogram equalisation (default = 1024)', default = 1024)
+    parser.add_argument('--nofits', dest = 'nofits',
+                      help = 'Do not save amplitudes as FITS image', default = False, action = 'store_true')
+    parser.add_argument('--nohanning', dest = 'nohanning',
+                      help = 'Do not apply Hanning filter', default = False, action = 'store_true')
+
 
     options = parser.parse_args()
     infits = options.infits
     pngname =  options.pngname
     noeq = options.noeq
     nbins = int(options.nbins)
-
+    nofits = options.nofits
+    nohanning = options.nohanning
 
     img = get_image(infits)
+    if not nohanning:
+        img = apply_hanning(img)
     fftimg = fft_image(img)
 
+    if not nofits:
+        fftfits = infits.replace('.fits','_FFT_amplitudes.fits')
+        shutil.copyfile(infits,fftfits)
+        flush_fits(fftimg,fftfits)
+
+    # if not noeq:
+    #     fftimg = hist_eq(fftimg,nbins)
+
+    # if pngname == '':
+    #     pngname = infits+'_FFT_amplitudes.png'
+
+    # imageio.imwrite(pngname,fftimg)
+
+
+    # Optional histogram equalization (still float)
     if not noeq:
-        fftimg = hist_eq(fftimg,nbins)
+        fftimg = hist_eq(fftimg, nbins)          # returns floats
+
+    # Nice for dynamic range in FFTs
+    viz = numpy.log1p(fftimg)                    # still float
+
+    # Map to integer type PNG understands
+    viz16 = to_uint16(viz)                       # or to_uint8(viz)
 
     if pngname == '':
-        pngname = infits+'_FFT_amplitudes.png'
+        pngname = infits + '_FFT_amplitudes.png'
 
-    imageio.imwrite(pngname,fftimg)
+    imageio.imwrite(pngname, viz16)              # now OK: uint16 grayscale PNG
 
 
 if __name__ == "__main__":
