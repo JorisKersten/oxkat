@@ -342,8 +342,8 @@ elif BAND == 'S4':
     CAL_1GC_0408_MODEL = ([5.929063869931191, 0.0, 0.0, 0.0],
                           [-1.3147166320376764, -0.2211465440487231, +0.08609999999777565],
                           '3062.5MHz')  # From the SARAO guide.
-    CAL_1GC_BAD_FREQS = ['*:2600~2690MHz',    # Lower band edge
-                        '*:3420~3600MHz']     # Upper band edge
+    CAL_1GC_BAD_FREQS = ['*:2600~2710MHz',    # Lower band edge
+                        '*:3390~3600MHz']     # Upper band edge
     CAL_1GC_BL_FLAG_UVRANGE = '<600'
     CAL_1GC_BL_FREQS = []
 
